@@ -1,0 +1,84 @@
+﻿---
+name: ncm-cli-setup
+description: 安装和配置 ncm-cli（网易云音乐 CLI 工具）。当用户需要安装 ncm-cli、配置 API Key，或排查安装问题时，使用此 skill。
+---
+
+# ncm-cli 安装配置
+
+ncm-cli 是网易云音乐的 CLI 工具（音乐搜索、播放控制、歌单管理、TUI 播放器（此处不使用））。
+
+> **运行环境：PowerShell**（本 SKILL 中所有命令均基于 PowerShell 语法）
+
+## 安装流程
+
+### 第一步：安装 ncm-cli
+
+```powershell
+npm install -g @music163/ncm-cli
+```
+
+验证安装：
+
+```powershell
+ncm-cli --version
+```
+
+### 第二步：配置 API Key
+
+使用 ncm-cli 需要先设置 API Key：
+
+```powershell
+ncm-cli config set appId <你的AppId>
+ncm-cli config set privateKey <你的PrivateKey>
+```
+
+
+> 如果还没有 API Key，请先前往[网易云音乐开放平台](https://developer.music.163.com/st/developer/apply/account?type=INDIVIDUAL)申请 API Key（appId 和 privateKey）。
+
+### 第三步：配置默认播放器
+
+```powershell
+ncm-cli config set player mpv
+```
+
+> 注意：此处设定 `mpv` 仅为满足 CLI 内部校验，实际不会调用 mpv 进行播放。
+
+### 第四步：登录
+
+登录是必须的，请使用：
+
+```powershell
+ncm-cli login --background
+```
+
+验证登录状态：
+
+```powershell
+ncm-cli state
+```
+
+> 如果 `state` 返回正常 JSON 数据（含 `success: true`），则登录成功。
+
+### 第五步：整体验证
+
+确认各项配置均就绪后，可执行以下命令做一次全面检查：
+
+```powershell
+ncm-cli --version; ncm-cli config list; ncm-cli state
+```
+
+三项均正常返回即为安装成功。
+
+## 常见问题
+
+| 问题                           | 解决方法                                                                 |
+|------------------------------|--------------------------------------------------------------------------|
+| `ncm-cli: command not found` | 检查 npm 全局 bin 是否在 PATH 中。PowerShell 中执行：`npm bin -g`            |
+| `mpv not found`              | 忽略，该方案不会使用 mpv 内置播放器                                          |
+| 登录超时                         | 重新执行 `ncm-cli login --background`                                    |
+| 编码乱码（PowerShell）            | 执行前先设置：`[Console]::OutputEncoding = [Text.Encoding]::UTF8`          |
+
+## 基本信息
+
+- 需要 **Node.js >= 18**
+- 运行环境：**PowerShell**（cmd 不适用）

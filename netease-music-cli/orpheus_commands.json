@@ -1,0 +1,86 @@
+﻿{
+  "protocol": "orpheus",
+  "description": "网易云音乐本地服务控制命令注册表。基于 orpheus:// 协议整理。",
+  "commands": [
+    {
+      "name": "next",
+      "description": "下一首",
+      "payload": {
+        "cmd": "next"
+      },
+      "base64": "eyJjbWQiOiJuZXh0In0="
+    },
+    {
+      "name": "previous",
+      "description": "上一首",
+      "payload": {
+        "cmd": "previous"
+      },
+      "base64": "eyJjbWQiOiJwcmV2aW91cyJ9"
+    },
+    {
+      "name": "pause",
+      "description": "暂停播放",
+      "payload": {
+        "cmd": "pause"
+      },
+      "base64": "eyJjbWQiOiJwYXVzZSJ9"
+    },
+    {
+      "name": "resume",
+      "description": "继续播放",
+      "payload": {
+        "cmd": "resume"
+      },
+      "base64": "eyJjbWQiOiJyZXN1bWUifQ=="
+    },
+    {
+      "name": "set_volume",
+      "description": "设置音量（x 为 0-100 的整数）",
+      "payload": {
+        "cmd": "volume",
+        "value": "$value"
+      },
+      "note": "volume_up/down 类相对调节未在协议中确认，建议由调用方自行计算目标值后传入"
+    },
+    {
+      "name": "seek",
+      "description": "跳转到指定秒数（支持小数点）",
+      "payload": {
+        "cmd": "seek",
+        "value": "$value"
+      },
+      "note": "value 为目标秒数，如 86 或 86.5，value为0时跳转到歌曲开头"
+    },
+    {
+      "name": "play_song",
+      "description": "播放指定歌曲",
+      "payload": {
+        "type": "song",
+        "id": "$id",
+        "cmd": "play"
+      },
+      "note": "id 为歌曲数字 ID（原始 ID）"
+    },
+    {
+      "name": "play_playlist",
+      "description": "播放指定歌单",
+      "payload": {
+        "type": "playlist",
+        "id": "$id",
+        "cmd": "play"
+      },
+      "note": "id 为歌单数字 ID"
+    }
+  ],
+  "usage": {
+    "powershell": "OrpheusControl -Json (ConvertTo-Json -Compress $payload)",
+    "example_simple": "$p = @{cmd='next'} | ConvertTo-Json -Compress; OrpheusControl -Json $p",
+    "example_with_params": "$p = @{cmd='volume'; value='50'} | ConvertTo-Json -Compress; OrpheusControl -Json $p",
+    "example_play": "$p = @{type='song'; id='12345678'; cmd='play'} | ConvertTo-Json -Compress; OrpheusControl -Json $p"
+  },
+  "encoding": {
+    "method": "UTF-8 → Base64 (标准, 含尾部 = 填充)",
+    "note": "协议使用标准 Base64，非 URL-safe 变体。客户端自行解码。"
+  }
+}
