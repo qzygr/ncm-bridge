@@ -48,23 +48,25 @@ ncm-cli config set player mpv
 登录是必须的，请使用：
 
 ```powershell
-ncm-cli login --background
+Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'
 ```
+
+执行后会在桌面弹出 PowerShell 登录窗口。此时应暂停自动化流程，等待用户扫码完成并确认后，再继续验证登录状态。
 
 验证登录状态：
 
 ```powershell
-ncm-cli state
+ncm-cli login --check
 ```
 
-> 如果 `state` 返回正常 JSON 数据（含 `success: true`），则登录成功。
+> 实际登录状态以 `ncm-cli login --check` 为准。`ncm-cli state` 只反映客户端/播放状态，不用于判断账号登录。
 
 ### 第五步：整体验证
 
 确认各项配置均就绪后，可执行以下命令做一次全面检查：
 
 ```powershell
-ncm-cli --version; ncm-cli config list; ncm-cli state
+ncm-cli --version; ncm-cli config list; ncm-cli login --check
 ```
 
 三项均正常返回即为安装成功。
@@ -75,7 +77,7 @@ ncm-cli --version; ncm-cli config list; ncm-cli state
 |------------------------------|--------------------------------------------------------------------------|
 | `ncm-cli: command not found` | 检查 npm 全局 bin 是否在 PATH 中。PowerShell 中执行：`npm bin -g`            |
 | `mpv not found`              | 忽略，该方案不会使用 mpv 内置播放器                                          |
-| 登录超时                         | 重新执行 `ncm-cli login --background`                                    |
+| 登录超时                         | 使用 `Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'` 弹出登录窗口 |
 | 编码乱码（PowerShell）            | 执行前先设置：`[Console]::OutputEncoding = [Text.Encoding]::UTF8`          |
 
 ## 基本信息

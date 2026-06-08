@@ -43,7 +43,9 @@ ncm-cli --version
 ncm-cli login --check
 ```
 
-若未登录，**只执行下面这一条命令，执行完立刻停止，不要再做任何后续操作**——包括不要再检查登录状态、不要再跑其他命令。直接告知用户「已弹出登录窗口，请扫码」即可：
+> 实际登录状态只以 `ncm-cli login --check` 为准。`ncm-cli state` 只反映客户端/播放状态，不用于判断账号是否登录。
+
+若未登录，**只执行下面这一条命令，执行完立刻停止当前任务，不要再做任何后续操作**
 
 ```powershell
 Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'
@@ -73,11 +75,14 @@ ncm-cli config set privateKey <你的PrivateKey>
 
 ```powershell
 Get-OrpheusCommands
+Get-OrpheusControlFunctions
 ```
 
 ---
 
 ## 第二步：获取命令树
+
+仅当 `ncm-cli login --check` 返回已登录后，才继续执行数据层命令树检查。未登录状态下，`search`、`playlist` 等命令可能不会出现在命令树中。
 
 ```powershell
 ncm-cli commands
@@ -131,7 +136,19 @@ Invoke-OrpheusCommand -Name "play_song" -Params @{id="12345678"}
 ```powershell
 ncm-cli playlist create --playlistName "跑步" --userInput "创建一个跑步歌单"
 ```
----
+
+涉及 JSON 数组参数的歌单控制命令，统一使用 `OrpheusControl.ps1` 中的封装函数，直接输入加密 ID：
+
+```powershell
+Invoke-NcmPlaylistControl -Action add -PlaylistId "加密歌单ID" -SongIds @("加密歌曲ID1", "加密歌曲ID2")
+Invoke-NcmPlaylistControl -Action remove -PlaylistId "加密歌单ID" -SongIds @("加密歌曲ID1")
+Invoke-NcmPlaylistControl -Action reorder -PlaylistId "加密歌单ID" -TrackIds @("加密歌曲ID1", "加密歌曲ID2")
+Invoke-NcmPlaylistControl -Action updateTags -PlaylistId "加密歌单ID" -Tags @("日语")
+```
+
+该函数会用参数数组调用 ncm-cli，避免 PowerShell/cmd 对 JSON 数组参数错误转义。
+
+--- 
 
 ## 【严禁】使用的命令
 
@@ -159,23 +176,7 @@ ncm-cli volume
 | 请求总量超限 | 直接告知用户原始错误，**禁止二次加工** |
 | `orpheus:` 协议无响应 | 确认客户端已运行，检查 `OrpheusControl.ps1` 是否已 dot-source |
 | `Invoke-OrpheusCommand` 未知命令 | 执行 `Get-OrpheusCommands` 查看可用命令列表 |
-| `playlist add` 返回 `400 songIdList参数非法` | JSON 内层双引号被 cmd.exe 剥离，需用 `\"` 转义，见下方 [cmd JSON 转义](#cmd-json-转义) |
-
----
-
-### cmd JSON 转义
-
-`astrbot_execute_shell` 底层为 cmd.exe。传入含 JSON 字符串的命令时，内层双引号必须用反斜杠转义，否则会被 shell 吃掉：
-
-```cmd
-# ✗ 错误 — 内层引号丢失，ncm-cli 收到裸串
-ncm-cli playlist add --songIdList "["C09E..."]"
-
-# ✓ 正确 — \" 作为字面引号传入
-ncm-cli playlist add --songIdList "[\"C09E...\",\"C9E8...\"]"
-```
-
-> 此规则适用于所有通过 cmd 传 JSON 数组参数的场景（`playlist add`、`playlist remove` 等）。
+| 歌单 JSON 数组参数报错 | 使用 `Invoke-NcmPlaylistControl`；不要直接手写 `songIdList`、`trackIds`、`tags` |
 
 ---
 
@@ -201,6 +202,8 @@ AI:
 3. Invoke-OrpheusCommand -Name "play_song" -Params @{id="2694779693"}
 4. 返回: 正在播放 [Eclipse - Aimer](https://music.163.com/#/song?id=2694779693)
 ```
+
+> `ncm-cli state` 不适合作为 `orpheus://` 播控结果判断依据。播控是否生效应以网易云音乐客户端窗口、UI 状态或用户听感反馈为准。
 
 ---
 
