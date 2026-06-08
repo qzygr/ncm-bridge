@@ -1,6 +1,6 @@
 ﻿# ncm-bridge
 
-网易云音乐 AstrBot Skill 插件——让Agent帮你点歌。
+网易云音乐 Skill 插件——让Agent帮你点歌。
 
 ## 架构
 
@@ -50,8 +50,10 @@ ncm-cli config set privateKey <你的PrivateKey>
 ### 3. 登录
 
 ```powershell
-ncm-cli login --background
+Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'
 ```
+
+执行后请在弹出的 PowerShell 窗口中完成扫码登录。登录是否完成以 `ncm-cli login --check` 为准；`ncm-cli state` 只反映客户端/播放状态，不用于判断账号登录。
 
 ### 4. 加载 Skill
 
@@ -70,7 +72,8 @@ ncm-cli login --background
 
 - 播控命令（play/pause/next 等）通过 `orpheus://` 协议发送，禁止直接使用 `ncm-cli` 的播控子命令
 - `play_song` 和 `play_playlist` 的 `id` 参数必须使用原始数字 ID，而非加密 ID
-- 登录环节如遇超时，在本地终端执行 `ncm-cli login --background` 并完成扫码
+- 登录环节如遇超时，使用 `Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'` 弹出登录窗口并完成扫码
+- `ncm-cli state` 不适合作为 `orpheus://` 播控是否生效的判断依据，请以客户端窗口、UI 状态或用户听感反馈为准
 
 ---
 
