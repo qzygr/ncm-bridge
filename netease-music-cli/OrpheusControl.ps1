@@ -4,6 +4,11 @@
 #       OrpheusControl -Json '{"cmd":"next"}'
 #       Invoke-OrpheusCommand -Name "next"
 
+$smtcScriptPath = Join-Path $PSScriptRoot "Read-NeteaseSmtc.ps1"
+if (Test-Path $smtcScriptPath) {
+    . $smtcScriptPath
+}
+
 # ============================================================
 # 核心函数：将 JSON 指令编码为 orpheus:// 协议 URL 并执行
 # 编码方式：UTF-8 → 标准 Base64（含尾部 = 填充）
@@ -116,10 +121,25 @@ function Invoke-NcmCliJson {
         [string[]]$Arguments
     )
 
-    $cliPath = Join-Path $env:APPDATA "npm\node_modules\@music163\ncm-cli\dist\index.js"
+    $cliPath = $null
+    $command = Get-Command "ncm-cli" -ErrorAction SilentlyContinue
+    if ($command -and $command.Source) {
+        $commandDir = Split-Path -Parent $command.Source
+        $candidatePath = Join-Path $commandDir "node_modules\@music163\ncm-cli\dist\index.js"
+        if (Test-Path $candidatePath) {
+            $cliPath = $candidatePath
+        }
+    }
+
+    if (-not $cliPath) {
+        $fallbackPath = Join-Path $env:APPDATA "npm\node_modules\@music163\ncm-cli\dist\index.js"
+        if (Test-Path $fallbackPath) {
+            $cliPath = $fallbackPath
+        }
+    }
+
     if (-not (Test-Path $cliPath)) {
-        Write-Verbose "[Invoke-NcmCliJson] Checked ncm-cli path: $cliPath"
-        Write-Error "[Invoke-NcmCliJson] ncm-cli 入口未找到，请确认已全局安装 @music163/ncm-cli。"
+        Write-Error "[Invoke-NcmCliJson] ncm-cli 入口未找到。已尝试从 PATH 中的 ncm-cli 命令位置推导，以及默认全局安装路径。请确认已全局安装 @music163/ncm-cli。"
         return $null
     }
 
@@ -303,6 +323,18 @@ function Invoke-NcmPlaylistControl {
 
     $arguments += @("--output", "json")
     Invoke-NcmCliJson -Arguments $arguments
+}
+
+# ============================================================
+# 状态层辅助函数：读取网易云 SMTC 基础状态
+# ============================================================
+function Get-NeteasePlaybackStatus {
+    if (-not (Get-Command Invoke-NeteaseSmtcRead -ErrorAction SilentlyContinue)) {
+        Write-Error "[Get-NeteasePlaybackStatus] SMTC reader not found: $smtcScriptPath"
+        return $null
+    }
+
+    Invoke-NeteaseSmtcRead
 }
 
 # ============================================================

@@ -13,6 +13,7 @@ description: 使用 ncm-cli 操作网易云音乐。当用户想播放歌曲、�
 |--------|------|------|
 | **数据层** | 搜索歌曲/歌单、获取 ID、歌单管理 | `ncm-cli` |
 | **播控层** | 播放、暂停、切歌、音量等本地控制 | `orpheus://` 协议（通过 `OrpheusControl.ps1`） |
+| **状态层** | 读取客户端会话、歌曲信息、播放状态 | Windows SMTC（通过 `Read-NeteaseSmtc.ps1`） |
 
 > **原则**：ncm-cli 负责"找"，orpheus 协议负责"播"。严禁使用 ncm-cli 的 play/pause/resume/stop/next/prev/seek/volume 命令。
 
@@ -124,6 +125,7 @@ start "orpheus:"
 ```powershell
 Invoke-OrpheusCommand -Name "next"
 Invoke-OrpheusCommand -Name "set_volume" -Params @{value="30"}
+Invoke-OrpheusCommand -Name "mode_random"
 Invoke-OrpheusCommand -Name "play_song" -Params @{id="12345678"}
 ```
 
@@ -148,7 +150,31 @@ Invoke-NcmPlaylistControl -Action updateTags -PlaylistId "加密歌单ID" -Tags 
 
 该函数会用参数数组调用 ncm-cli，避免 PowerShell/cmd 对 JSON 数组参数错误转义。
 
---- 
+### 3.5 播放状态读取（状态层）
+
+优先使用 `Get-NeteasePlaybackStatus` 读取当前客户端状态：
+
+```powershell
+Get-NeteasePlaybackStatus
+```
+
+也可以直接执行底层脚本输出 JSON：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\Read-NeteaseSmtc.ps1" -Json
+```
+
+返回内容通常包括：
+
+- 是否成功读取到网易云音乐会话
+- 当前歌曲标题与歌手
+- 当前播放状态
+- 时间线位置与总时长
+- 时间线是否可用
+
+> `ncm-cli state` 不适合作为 `orpheus://` 播控结果判断依据。播控是否生效应优先结合客户端 UI、用户反馈和 `Get-NeteasePlaybackStatus` 一并判断。
+
+---
 
 ## 【严禁】使用的命令
 
@@ -203,7 +229,11 @@ AI:
 4. 返回: 正在播放 [Eclipse - Aimer](https://music.163.com/#/song?id=2694779693)
 ```
 
-> `ncm-cli state` 不适合作为 `orpheus://` 播控结果判断依据。播控是否生效应以网易云音乐客户端窗口、UI 状态或用户听感反馈为准。
+状态确认示例：
+
+```powershell
+Get-NeteasePlaybackStatus
+```
 
 ---
 
@@ -212,5 +242,6 @@ AI:
 | 文件 | 说明 |
 |------|------|
 | `OrpheusControl.ps1` | 播控函数模块（dot-source 加载） |
+| `Read-NeteaseSmtc.ps1` | 基于 Windows SMTC 的状态读取脚本 |
 | `orpheus_commands.json` | 播控命令注册表（`OrpheusControl.ps1` 自动读取） |
 | `ncm-cli` | npm 全局包 `@music163/ncm-cli` |

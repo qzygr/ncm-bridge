@@ -8,6 +8,7 @@
 |--------|------|------|
 | **数据层** | 搜索歌曲/歌单、获取 ID、歌单管理 | `ncm-cli` |
 | **播控层** | 播放、暂停、切歌、音量控制 | `orpheus://` 协议（OrpheusControl.ps1） |
+| **状态层** | 读取客户端会话、歌曲信息、播放状态 | Windows SMTC（Read-NeteaseSmtc.ps1） |
 
 > ncm-cli 负责找，orpheus 负责播。泾渭分明。
 
@@ -20,6 +21,7 @@ ncm-bridge/
 ├── netease-music-cli/
 │   ├── SKILL.md                 # 日常使用指南
 │   ├── OrpheusControl.ps1       # 播控函数模块
+│   ├── Read-NeteaseSmtc.ps1     # 基于 SMTC 的状态读取脚本
 │   └── orpheus_commands.json    # 播控命令注册表
 └── README.md
 ```
@@ -74,6 +76,8 @@ Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login -
 - `play_song` 和 `play_playlist` 的 `id` 参数必须使用原始数字 ID，而非加密 ID
 - 登录环节如遇超时，使用 `Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'` 弹出登录窗口并完成扫码
 - `ncm-cli state` 不适合作为 `orpheus://` 播控是否生效的判断依据，请以客户端窗口、UI 状态或用户听感反馈为准
+- `Get-NeteasePlaybackStatus` 依赖 Windows SMTC；如果客户端未运行、系统关闭了媒体会话能力，或当前会话未暴露给 SMTC，读取会失败
+- `Invoke-NcmCliJson` 不再只依赖默认 `%APPDATA%` 路径，会优先从 `PATH` 中解析 `ncm-cli` 的安装位置
 
 ---
 
