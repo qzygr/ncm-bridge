@@ -7,32 +7,60 @@
       "description": "下一首",
       "payload": {
         "cmd": "next"
-      },
-      "base64": "eyJjbWQiOiJuZXh0In0="
+      }
     },
     {
       "name": "previous",
       "description": "上一首",
       "payload": {
         "cmd": "previous"
-      },
-      "base64": "eyJjbWQiOiJwcmV2aW91cyJ9"
+      }
     },
     {
       "name": "pause",
       "description": "暂停播放",
       "payload": {
         "cmd": "pause"
-      },
-      "base64": "eyJjbWQiOiJwYXVzZSJ9"
+      }
     },
     {
       "name": "resume",
       "description": "继续播放",
       "payload": {
         "cmd": "resume"
-      },
-      "base64": "eyJjbWQiOiJyZXN1bWUifQ=="
+      }
+    },
+    {
+      "name": "mode_random",
+      "description": "随机播放",
+      "payload": {
+        "cmd": "mode",
+        "value": "random"
+      }
+    },
+    {
+      "name": "mode_order",
+      "description": "顺序播放",
+      "payload": {
+        "cmd": "mode",
+        "value": "order"
+      }
+    },
+    {
+      "name": "mode_single",
+      "description": "单曲循环",
+      "payload": {
+        "cmd": "mode",
+        "value": "single"
+      }
+    },
+    {
+      "name": "mode_cycle",
+      "description": "列表循环",
+      "payload": {
+        "cmd": "mode",
+        "value": "cycle"
+      }
     },
     {
       "name": "set_volume",

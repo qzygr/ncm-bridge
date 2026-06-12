@@ -124,6 +124,7 @@ start "orpheus:"
 ```powershell
 Invoke-OrpheusCommand -Name "next"
 Invoke-OrpheusCommand -Name "set_volume" -Params @{value="30"}
+Invoke-OrpheusCommand -Name "mode_random"
 Invoke-OrpheusCommand -Name "play_song" -Params @{id="12345678"}
 ```
 
