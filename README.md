@@ -23,6 +23,8 @@ ncm-bridge/
 │   ├── OrpheusControl.ps1       # 播控函数模块
 │   ├── Read-NeteaseSmtc.ps1     # 基于 SMTC 的状态读取脚本
 │   └── orpheus_commands.json    # 播控命令注册表
+├── scripts/
+│   └── test-ncm-bridge.ps1      # 环境/登录/完整性自检脚本
 └── README.md
 ```
 
@@ -63,6 +65,24 @@ Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login -
 （其实这步最重要，前三点都不是必要的，Agent会自动帮你搞定这几点）
 （你让 Agent 读取这个文件夹，然后让它安装这个东西，就能用了）
 
+### 5. 运行自检
+
+以后默认先运行自检脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
+```
+
+若 9/9 通过，说明环境、登录状态和关键脚本完整性均已就绪。
+
+若仅 `account login status` 失败，则按提示执行桌面弹窗登录：
+
+```powershell
+Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'
+```
+
+执行后停止当前流程，等待用户扫码完成，再重新运行自检。
+
 ## 使用示例
 
 > 博士：普瑞赛斯，点一首 Eclipse
@@ -75,6 +95,7 @@ Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login -
 - 播控命令（play/pause/next 等）通过 `orpheus://` 协议发送，禁止直接使用 `ncm-cli` 的播控子命令
 - `play_song` 和 `play_playlist` 的 `id` 参数必须使用原始数字 ID，而非加密 ID
 - 登录环节如遇超时，使用 `Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'` 弹出登录窗口并完成扫码
+- 推荐将 `scripts/test-ncm-bridge.ps1` 作为统一入口；先跑自检，再决定是否继续搜索、播控或状态读取
 - `ncm-cli state` 不适合作为 `orpheus://` 播控是否生效的判断依据，请以客户端窗口、UI 状态或用户听感反馈为准
 - `Get-NeteasePlaybackStatus` 依赖 Windows SMTC；如果客户端未运行、系统关闭了媒体会话能力，或当前会话未暴露给 SMTC，读取会失败
 - `Invoke-NcmCliJson` 不再只依赖默认 `%APPDATA%` 路径，会优先从 `PATH` 中解析 `ncm-cli` 的安装位置

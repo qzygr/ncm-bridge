@@ -30,6 +30,19 @@ description: 使用 ncm-cli 操作网易云音乐。当用户想播放歌曲、�
 
 ## 第一步：环境检查
 
+若仓库内存在统一自检脚本，优先先跑这一条：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
+```
+
+解释：
+
+- `9/9` 通过：可以继续执行数据层、播控层、状态层操作
+- 若仅 `account login status` 失败：不要继续执行任何后续命令，改走下文 1.2 的桌面弹窗登录流程
+
+只有在需要单独定位问题，或仓库中没有该脚本时，再逐项手动检查下面这些内容。
+
 ### 1.1 检查 ncm-cli
 
 ```powershell
