@@ -71,6 +71,23 @@ ncm-cli --version; ncm-cli config list; ncm-cli login --check
 
 三项均正常返回即为安装成功。
 
+若当前仓库可用，优先使用统一自检脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
+```
+
+解释规则如下：
+
+- `9/9` 通过：环境、登录状态、关键脚本与命令注册表均已就绪
+- 若仅 `account login status` 失败：不要继续执行后续命令，改用桌面弹窗登录流程
+
+```powershell
+Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'
+```
+
+执行后暂停当前任务，等待用户扫码完成，再重新运行自检脚本。
+
 ## 常见问题
 
 | 问题                           | 解决方法                                                                 |
