@@ -40,6 +40,13 @@ dry-run 不验证客户端是否执行。播放结果只能通过 SMTC 验证：
 powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 -Action verifyPlayback -ExpectedTitle "歌名" -ExpectedArtist "歌手" -Json
 ```
 
+返回 `code: NOT_VERIFIED` 时，优先查看 `diagnostics`：
+
+- `expected` / `actual`：期望和 SMTC 实际读到的歌名、歌手、播放状态。
+- `matches`：歌名、歌手、`Playing` 状态是否分别匹配。
+- `mismatchReasons`：失败原因，例如 `title_mismatch`、`artist_mismatch`、`playback_status_not_playing`、`smtc_read_failed`。
+- `urlLaunched`：由 `playSong -Verify` 或 `playTheme -Verify` 发起验证时，记录已启动的 `orpheus://` URL。
+
 ## SMTC 读不到状态
 
 可能原因：

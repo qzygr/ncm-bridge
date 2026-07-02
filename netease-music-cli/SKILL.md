@@ -11,7 +11,9 @@ description: 使用 ncm-bridge 操作网易云音乐。用于搜索、点歌、�
 powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
 ```
 
-- `9/9` 通过后继续。
+- 默认自检只跑 fast：不联网、不远端写入、不真实播放、不读 SMTC。
+- 需要联网搜索和 SMTC 路径时，用 `.\scripts\test-ncm-bridge.ps1 -Live`。
+- 需要真实播放验证时，再加 `-IncludePlayback`。
 - 仅登录失败时，只启动登录窗口并停止等待用户扫码：
 
 ```powershell
@@ -31,7 +33,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 -Action
 ## 常用动作
 
 ```text
-status / repair / pruneMissing / searchSong / playSong / verifyPlayback
+help / status / repair / pruneMissing / searchSong / playSong / verifyPlayback
 setTheme / validateReplaceTracks / replaceTracks / playTheme / dryRun
 ```
 
@@ -48,6 +50,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 -Action
 - `orpheus://` URL 发出不代表播放成功。
 - dry-run 只验证 payload 生成，不验证客户端执行。
 - 播放结果只能通过 SMTC 验证，使用 `-Verify` 或 `verifyPlayback`。
+- `code: NOT_VERIFIED` 时查看 `verification.diagnostics` 或 `diagnostics`。
 - 禁止使用 `ncm-cli play/pause/resume/stop/next/prev/seek/volume`。
 - 搜索结果里：`encryptedId` 用于歌单编辑，`originalId` 用于播放。
 

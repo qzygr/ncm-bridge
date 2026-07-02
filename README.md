@@ -17,6 +17,7 @@
 |---|---|---|
 | Agent 入口 | 常用动作分发、短 JSON 输出 | `scripts/invoke-ncm-bridge.ps1` |
 | 数据层 | ncm-cli JSON 调用、歌单查询和修改 | `scripts/NcmBridge.*.ps1` |
+| 帮助契约 | 统一入口动作、参数和约束说明 | `scripts/NcmBridge.Help.ps1` |
 | 播控层 | 启动 `orpheus://` URL | `netease-music-cli/OrpheusControl.ps1` |
 | 状态层 | 读取 SMTC 并支持延时/重试 | `netease-music-cli/Read-NeteaseSmtc.ps1` |
 | Skill | Agent 必读最小规则 | `netease-music-cli/SKILL.md` |
@@ -53,7 +54,7 @@ Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login -
 powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
 ```
 
-如果自检只有 `account login status` 失败，只启动登录窗口并停止，等扫码完成后重新自检。
+如果 `-Live` 自检只有 `account login status` 失败，只启动登录窗口并停止，等扫码完成后重新自检。
 
 ## 统一入口
 
@@ -118,6 +119,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 `
 | Action | 用途 |
 |---|---|
 | `status` | 读取当前专用歌单健康状态 |
+| `help` | 输出统一入口动作、参数和约束 |
 | `repair` | 修复 active key 指向失效歌单的问题 |
 | `pruneMissing` | 清理失效 key，建议先加 `-DryRun` |
 | `searchSong` | 返回紧凑歌曲搜索结果 |
@@ -131,13 +133,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 `
 
 ## 测试
 
-完整自检：
+快速离线自检，不联网、不远端写入、不真实播放：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-invoke-fast.ps1
+```
+
+完整自检默认调用 fast；如需联网搜索和 SMTC 路径，加 `-Live`；如需真实播放验证，再加 `-IncludePlayback`：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1 -Live
+powershell -ExecutionPolicy Bypass -File .\scripts\test-invoke-live.ps1 -IncludePlayback
 ```
 
-入口测试：
+兼容入口，等价于 fast：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\test-invoke-ncm-bridge.ps1
@@ -166,10 +176,13 @@ ncm-bridge/
 ├── scripts/
 │   ├── NcmBridge.Cli.ps1
 │   ├── NcmBridge.Config.ps1
+│   ├── NcmBridge.Help.ps1
 │   ├── NcmBridge.Playlist.ps1
 │   ├── NcmBridge.Text.ps1
 │   ├── invoke-ncm-bridge.ps1
 │   ├── test-ncm-bridge.ps1
+│   ├── test-invoke-fast.ps1
+│   ├── test-invoke-live.ps1
 │   ├── test-invoke-ncm-bridge.ps1
 │   └── test-orpheus-payload.ps1
 └── README.md

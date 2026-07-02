@@ -1,10 +1,10 @@
 param(
-    [switch]$Json
+    [switch]$Json,
+    [switch]$Live,
+    [switch]$IncludePlayback
 )
 
 $ErrorActionPreference = "Stop"
-
-$LoginWindowCommand = "Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'"
 
 function New-TestResult {
     param(
@@ -74,30 +74,27 @@ function Test-IsWindowsEnvironment {
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$orpheusScript = Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1"
-$smtcScript = Join-Path $repoRoot "netease-music-cli\Read-NeteaseSmtc.ps1"
-$registryPath = Join-Path $repoRoot "netease-music-cli\orpheus_commands.json"
-$cliModule = Join-Path $repoRoot "scripts\NcmBridge.Cli.ps1"
-$playlistModule = Join-Path $repoRoot "scripts\NcmBridge.Playlist.ps1"
+$fastScript = Join-Path $PSScriptRoot "test-invoke-fast.ps1"
+$liveScript = Join-Path $PSScriptRoot "test-invoke-live.ps1"
 
 $results = New-Object System.Collections.Generic.List[object]
 
-$results.Add((Invoke-TestStep -Category "environment" -Name "operating system" -Action {
-    if (-not (Test-IsWindowsEnvironment)) {
-        throw "Current system is not Windows."
+$results.Add((Invoke-TestStep -Category "fast" -Name "offline invoke layer" -Action {
+    $arguments = @("-ExecutionPolicy", "Bypass", "-File", $fastScript, "-Json")
+    $raw = & powershell @arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "test-invoke-fast.ps1 failed."
     }
-    "Windows detected"
+
+    $report = ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    if (-not $report.Success -and -not $report.success) {
+        throw "test-invoke-fast.ps1 reported failure."
+    }
+
+    "$($report.Summary.Passed)/$($report.Summary.Total) passed"
 }))
 
-$results.Add((Invoke-TestStep -Category "environment" -Name "PowerShell version" -Action {
-    $version = $PSVersionTable.PSVersion
-    if ($version.Major -lt 5) {
-        throw "PowerShell version is too old: $version"
-    }
-    "PowerShell $version"
-}))
-
-$results.Add((Invoke-TestStep -Category "environment" -Name "Node.js" -Action {
+$results.Add((Invoke-TestStep -Category "environment" -Name "Node.js availability" -Action {
     $nodeVersionText = (& node --version).Trim()
     if (-not $nodeVersionText) {
         throw "node --version returned no output."
@@ -112,130 +109,26 @@ $results.Add((Invoke-TestStep -Category "environment" -Name "Node.js" -Action {
     "Node.js $nodeVersionText"
 }))
 
-$results.Add((Invoke-TestStep -Category "environment" -Name "ncm-cli availability" -Action {
-    $command = Get-Command "ncm-cli" -ErrorAction Stop
-    $version = (& ncm-cli --version).Trim()
-    if (-not $version) {
-        throw "ncm-cli --version returned no output."
-    }
-    "ncm-cli $version ($($command.Source))"
-}))
-
-$results.Add((Invoke-TestStep -Category "login" -Name "account login status" -Action {
-    $raw = & ncm-cli login --check
-    if (-not $raw) {
-        throw "ncm-cli login --check returned no output."
-    }
-
-    $parsed = $raw | ConvertFrom-Json -ErrorAction Stop
-    if (-not $parsed.success) {
-        $message = if ($parsed.message) { $parsed.message } else { "Not logged in." }
-        throw ($message + " Use the desktop login flow instead: " + $LoginWindowCommand + ". After launching it, stop here and wait for QR login to complete before rerunning this test.")
-    }
-
-    if ($parsed.message) {
-        $parsed.message
-    }
-    else {
-        "Logged in"
-    }
-}))
-
-$results.Add((Invoke-TestStep -Category "integrity" -Name "required files" -Action {
-    $requiredFiles = @(
-        "README.md",
-        "ncm-cli-setup\SKILL.md",
-        "netease-music-cli\SKILL.md",
-        "netease-music-cli\OrpheusControl.ps1",
-        "netease-music-cli\Read-NeteaseSmtc.ps1",
-        "netease-music-cli\orpheus_commands.json",
-        "scripts\NcmBridge.Cli.ps1",
-        "scripts\NcmBridge.Config.ps1",
-        "scripts\NcmBridge.Text.ps1",
-        "scripts\NcmBridge.Playlist.ps1",
-        "scripts\repair-ncm-bridge-config.ps1",
-        "scripts\invoke-ncm-bridge.ps1",
-        "scripts\test-invoke-ncm-bridge.ps1",
-        "scripts\test-orpheus-payload.ps1"
-    )
-
-    $missing = @()
-    foreach ($relativePath in $requiredFiles) {
-        $fullPath = Join-Path $repoRoot $relativePath
-        if (-not (Test-Path $fullPath)) {
-            $missing += $relativePath
+if ($Live) {
+    $results.Add((Invoke-TestStep -Category "live" -Name "online invoke layer" -Action {
+        $arguments = @("-ExecutionPolicy", "Bypass", "-File", $liveScript, "-Json")
+        if ($IncludePlayback) { $arguments += "-IncludePlayback" }
+        $raw = & powershell @arguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "test-invoke-live.ps1 failed."
         }
-    }
 
-    if ($missing.Count -gt 0) {
-        throw "Missing files: $($missing -join ', ')"
-    }
+        $report = ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
+        if (-not $report.Success -and -not $report.success) {
+            throw "test-invoke-live.ps1 reported failure."
+        }
 
-    "All required files exist"
-}))
-
-$results.Add((Invoke-TestStep -Category "integrity" -Name "orpheus registry" -Action {
-    $registry = Get-Content $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-    if (-not $registry.commands -or $registry.commands.Count -eq 0) {
-        throw "Registry commands list is empty."
-    }
-
-    $requiredCommands = @("next", "previous", "pause", "resume", "play_song", "play_playlist", "set_volume", "seek")
-    $missing = @($requiredCommands | Where-Object { $_ -notin $registry.commands.name })
-    if ($missing.Count -gt 0) {
-        throw "Missing commands: $($missing -join ', ')"
-    }
-
-    "Command count: $($registry.commands.Count)"
-}))
-
-$results.Add((Invoke-TestStep -Category "integrity" -Name "PowerShell syntax" -Action {
-    $paths = @(
-        $orpheusScript,
-        $smtcScript,
-        (Join-Path $repoRoot "scripts\NcmBridge.Cli.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Config.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Text.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Playlist.ps1"),
-        (Join-Path $repoRoot "scripts\get-ncm-bridge-status.ps1"),
-        (Join-Path $repoRoot "scripts\init-ncm-bridge-playlist.ps1"),
-        (Join-Path $repoRoot "scripts\invoke-ncm-bridge.ps1"),
-        (Join-Path $repoRoot "scripts\repair-ncm-bridge-config.ps1"),
-        (Join-Path $repoRoot "scripts\replace-ncm-bridge-tracks.ps1"),
-        (Join-Path $repoRoot "scripts\set-ncm-bridge-theme.ps1"),
-        (Join-Path $repoRoot "scripts\play-ncm-bridge-theme.ps1"),
-        (Join-Path $repoRoot "scripts\test-invoke-ncm-bridge.ps1"),
-        (Join-Path $repoRoot "scripts\test-orpheus-payload.ps1")
-    )
-
-    foreach ($path in $paths) {
-        $null = Test-PowerShellSyntax -Path $path
-    }
-    "Syntax OK: $($paths.Count) files"
-}))
-
-$results.Add((Invoke-TestStep -Category "integrity" -Name "module load and functions" -Action {
-    . $orpheusScript
-    . $cliModule
-    . $playlistModule
-
-    $requiredFunctions = @(
-        "OrpheusControl",
-        "Invoke-OrpheusCommand",
-        "Invoke-NcmCliJson",
-        "Invoke-NcmPlaylistControl",
-        "Get-NeteasePlaybackStatus",
-        "Get-OrpheusCommands",
-        "Get-OrpheusControlFunctions"
-    )
-
-    $missing = @($requiredFunctions | Where-Object { -not (Get-Command $_ -ErrorAction SilentlyContinue) })
-    if ($missing.Count -gt 0) {
-        throw "Missing functions: $($missing -join ', ')"
-    }
-
-    "Required functions are available"
-}))
+        "$($report.Summary.Passed)/$($report.Summary.Total) passed"
+    }))
+}
+else {
+    $results.Add((New-TestResult -Category "live" -Name "online invoke layer" -Passed $true -Detail "Skipped. Re-run with -Live for search/SMTC checks, add -IncludePlayback for real playback."))
+}
 
 $summary = [pscustomobject]@{
     Total = $results.Count
@@ -245,6 +138,8 @@ $summary = [pscustomobject]@{
 
 $report = [pscustomobject]@{
     Success = ($summary.Failed -eq 0)
+    Layer = if ($Live) { "fast+live" } else { "fast" }
+    IncludesPlayback = [bool]$IncludePlayback
     Summary = $summary
     Results = $results
 }

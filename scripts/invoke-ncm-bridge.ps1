@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("status", "repair", "pruneMissing", "dryRun", "searchSong", "playSong", "verifyPlayback", "playDefault", "setTheme", "replaceTracks", "validateReplaceTracks", "playTheme")]
+    [ValidateSet("help", "status", "repair", "pruneMissing", "dryRun", "searchSong", "playSong", "verifyPlayback", "playDefault", "setTheme", "replaceTracks", "validateReplaceTracks", "playTheme")]
     [string]$Action,
 
     [string]$Keyword = "",
@@ -35,6 +35,7 @@ $verifyInitialDelayMs = $InitialDelayMs
 . (Join-Path $PSScriptRoot "NcmBridge.Config.ps1")
 . (Join-Path $PSScriptRoot "NcmBridge.Cli.ps1")
 . (Join-Path $PSScriptRoot "NcmBridge.Text.ps1")
+. (Join-Path $PSScriptRoot "NcmBridge.Help.ps1")
 
 if (-not $ConfigPath) {
     $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -50,6 +51,11 @@ function Write-BridgeResult {
     if ($outputJson) {
         $Value | ConvertTo-Json -Depth 10 -Compress:$CompressJson
         exit
+    }
+
+    if ($Value.action -eq "help") {
+        ConvertTo-BridgeHelpText -Value $Value
+        return
     }
 
     if ($Value.message) { $Value.message }
@@ -99,10 +105,93 @@ function Test-TextMatch {
     return $Actual.IndexOf($Expected, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
 }
 
+function New-PlaybackVerificationDiagnostics {
+    param(
+        [object]$Status,
+        [string]$ExpectedTitle = "",
+        [string]$ExpectedArtist = "",
+        [bool]$TitleMatched,
+        [bool]$ArtistMatched,
+        [bool]$PlayingMatched,
+        [int]$Attempts,
+        [int]$RetryDelayMs,
+        [int]$InitialDelayMs,
+        [string]$UrlLaunched = ""
+    )
+
+    $actualTitle = if ($Status) { "$($Status.Title)" } else { $null }
+    $actualArtist = if ($Status) { "$($Status.Artist)" } else { $null }
+    $actualStatus = if ($Status) { "$($Status.PlaybackStatus)" } else { $null }
+    $smtcSuccess = if ($Status) { [bool]$Status.Success } else { $false }
+    $mismatchReasons = New-Object System.Collections.Generic.List[string]
+
+    if (-not $Status) {
+        $mismatchReasons.Add("smtc_status_missing")
+    }
+    elseif (-not $smtcSuccess) {
+        $mismatchReasons.Add("smtc_read_failed")
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedTitle) -and -not $TitleMatched) {
+        if ([string]::IsNullOrWhiteSpace($actualTitle)) {
+            $mismatchReasons.Add("title_missing")
+        }
+        else {
+            $mismatchReasons.Add("title_mismatch")
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedArtist) -and -not $ArtistMatched) {
+        if ([string]::IsNullOrWhiteSpace($actualArtist)) {
+            $mismatchReasons.Add("artist_missing")
+        }
+        else {
+            $mismatchReasons.Add("artist_mismatch")
+        }
+    }
+
+    if (-not $PlayingMatched) {
+        if ([string]::IsNullOrWhiteSpace($actualStatus)) {
+            $mismatchReasons.Add("playback_status_missing")
+        }
+        else {
+            $mismatchReasons.Add("playback_status_not_playing")
+        }
+    }
+
+    [pscustomobject]@{
+        expected = [pscustomobject]@{
+            title = $ExpectedTitle
+            artist = $ExpectedArtist
+            status = "Playing"
+        }
+        actual = [pscustomobject]@{
+            title = $actualTitle
+            artist = $actualArtist
+            status = $actualStatus
+        }
+        matches = [pscustomobject]@{
+            title = $TitleMatched
+            artist = $ArtistMatched
+            status = $PlayingMatched
+        }
+        mismatchReasons = @($mismatchReasons)
+        urlLaunched = if ([string]::IsNullOrWhiteSpace($UrlLaunched)) { $null } else { $UrlLaunched }
+        smtcSuccess = $smtcSuccess
+        smtcError = if ($Status) { $Status.Error } else { $null }
+        smtcDetail = if ($Status) { $Status.Detail } else { $null }
+        attempt = if ($Status) { $Status.VerifyAttempt } else { $null }
+        attempts = $Attempts
+        retryDelayMs = $RetryDelayMs
+        initialDelayMs = $InitialDelayMs
+    }
+}
+
 function Invoke-PlaybackVerification {
     param(
         [string]$ExpectedTitle = "",
-        [string]$ExpectedArtist = ""
+        [string]$ExpectedArtist = "",
+        [string]$UrlLaunched = ""
     )
 
     . (Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1")
@@ -143,7 +232,7 @@ function Invoke-PlaybackVerification {
         }
     }
 
-    [pscustomobject]@{
+    $result = [pscustomobject]@{
         success = $verified
         action = "verifyPlayback"
         code = if ($verified) { "VERIFIED" } else { "NOT_VERIFIED" }
@@ -159,6 +248,22 @@ function Invoke-PlaybackVerification {
         initialDelayMs = $verifyInitialDelayMs
         smtc = $status
     }
+
+    if (-not $verified) {
+        $result | Add-Member -NotePropertyName diagnostics -NotePropertyValue (New-PlaybackVerificationDiagnostics `
+            -Status $status `
+            -ExpectedTitle $ExpectedTitle `
+            -ExpectedArtist $ExpectedArtist `
+            -TitleMatched $titleMatched `
+            -ArtistMatched $artistMatched `
+            -PlayingMatched $playingMatched `
+            -Attempts $verifyAttempts `
+            -RetryDelayMs $verifyRetryDelayMs `
+            -InitialDelayMs $verifyInitialDelayMs `
+            -UrlLaunched $UrlLaunched) -Force
+    }
+
+    $result
 }
 
 function Get-BridgeThemePreview {
@@ -193,6 +298,10 @@ function Get-BridgeThemePreview {
 }
 
 $result = switch ($Action) {
+    "help" {
+        New-BridgeHelpResult
+    }
+
     "status" {
         $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "get-ncm-bridge-status.ps1"), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-Summary", "-Json")
         Invoke-BridgeScript -Arguments $args
@@ -270,7 +379,7 @@ $result = switch ($Action) {
         . (Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1")
         $url = Invoke-OrpheusCommand -Name "play_song" -Params @{ id = "$OriginalId" } -DryRun:$DryRun 6>$null
         $verification = if ($Verify -and -not $DryRun) {
-            Invoke-PlaybackVerification -ExpectedTitle $ExpectedTitle -ExpectedArtist $ExpectedArtist
+            Invoke-PlaybackVerification -ExpectedTitle $ExpectedTitle -ExpectedArtist $ExpectedArtist -UrlLaunched $url
         }
         else {
             $null
@@ -279,8 +388,8 @@ $result = switch ($Action) {
         [pscustomobject]@{
             success = if ($verification) { [bool]$verification.success } else { $true }
             action = "playSong"
-            code = if ($DryRun) { "URL_PREVIEWED" } elseif ($verification -and $verification.success) { "VERIFIED" } else { "URL_LAUNCHED" }
-            message = if ($verification -and $verification.success) { "Playback verified by SMTC." } elseif ($DryRun) { "Protocol URL previewed. Dry-run does not verify playback." } else { "Protocol URL launched. Use SMTC to verify playback." }
+            code = if ($DryRun) { "URL_PREVIEWED" } elseif ($verification -and $verification.success) { "VERIFIED" } elseif ($verification) { "NOT_VERIFIED" } else { "URL_LAUNCHED" }
+            message = if ($verification -and $verification.success) { "Playback verified by SMTC." } elseif ($verification) { "Playback was not verified by SMTC." } elseif ($DryRun) { "Protocol URL previewed. Dry-run does not verify playback." } else { "Protocol URL launched. Use SMTC to verify playback." }
             dryRun = [bool]$DryRun
             verified = if ($verification) { [bool]$verification.success } else { $false }
             originalId = "$OriginalId"
@@ -368,7 +477,7 @@ $result = switch ($Action) {
         if (-not [string]::IsNullOrWhiteSpace($Description)) { $args += @("-Description", $Description) }
         $playThemeResult = Invoke-BridgeScript -Arguments $args
         if ($Verify) {
-            $verification = Invoke-PlaybackVerification -ExpectedTitle $ExpectedTitle -ExpectedArtist $ExpectedArtist
+            $verification = Invoke-PlaybackVerification -ExpectedTitle $ExpectedTitle -ExpectedArtist $ExpectedArtist -UrlLaunched "$($playThemeResult.playUrl)"
             $playThemeResult | Add-Member -NotePropertyName verified -NotePropertyValue ([bool]$verification.success) -Force
             $playThemeResult | Add-Member -NotePropertyName verification -NotePropertyValue $verification -Force
             $playThemeResult.code = if ($verification.success) { "VERIFIED" } else { "NOT_VERIFIED" }
