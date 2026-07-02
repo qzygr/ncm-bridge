@@ -1,107 +1,211 @@
-﻿# ncm-bridge
+# ncm-bridge
 
-网易云音乐 Skill 插件——让Agent帮你点歌。
+网易云音乐 Agent 桥接项目。目标是在完成搜索、歌单管理和本地播放控制的同时，尽量降低 Agent token 消耗，并避免神文件和神函数。
+
+## 核心原则
+
+- Agent 默认只走 `scripts/invoke-ncm-bridge.ps1`。
+- `ncm-cli` 负责搜索和歌单管理。
+- `orpheus://` 只负责发起本地客户端协议 URL。
+- `orpheus://` URL 发出、payload dry-run 或进程返回成功，都不代表客户端已经播放。
+- 播放结果只能通过 Windows SMTC 验证；入口脚本会轮询 SMTC，直到目标曲目匹配或超时。
+- 真实远端写入前优先使用 `-DryRun` / `validateReplaceTracks`。
 
 ## 架构
 
-| 子系统 | 用途 | 工具 |
-|--------|------|------|
-| **数据层** | 搜索歌曲/歌单、获取 ID、歌单管理 | `ncm-cli` |
-| **播控层** | 播放、暂停、切歌、音量控制 | `orpheus://` 协议（OrpheusControl.ps1） |
-| **状态层** | 读取客户端会话、歌曲信息、播放状态 | Windows SMTC（Read-NeteaseSmtc.ps1） |
-
-> ncm-cli 负责找，orpheus 负责播。泾渭分明。
-
-## 目录结构
-
-```
-ncm-bridge/
-├── ncm-cli-setup/
-│   └── SKILL.md                 # 安装与配置指南
-├── netease-music-cli/
-│   ├── SKILL.md                 # 日常使用指南
-│   ├── OrpheusControl.ps1       # 播控函数模块
-│   ├── Read-NeteaseSmtc.ps1     # 基于 SMTC 的状态读取脚本
-│   └── orpheus_commands.json    # 播控命令注册表
-├── scripts/
-│   └── test-ncm-bridge.ps1      # 环境/登录/完整性自检脚本
-└── README.md
-```
+| 层 | 职责 | 文件 |
+|---|---|---|
+| Agent 入口 | 常用动作分发、短 JSON 输出 | `scripts/invoke-ncm-bridge.ps1` |
+| 数据层 | ncm-cli JSON 调用、歌单查询和修改 | `scripts/NcmBridge.*.ps1` |
+| 播控层 | 启动 `orpheus://` URL | `netease-music-cli/OrpheusControl.ps1` |
+| 状态层 | 读取 SMTC 并支持延时/重试 | `netease-music-cli/Read-NeteaseSmtc.ps1` |
+| Skill | Agent 必读最小规则 | `netease-music-cli/SKILL.md` |
+| 细节文档 | 低频说明，减少默认读取量 | `netease-music-cli/references/` |
 
 ## 环境要求
 
-- **操作系统**：仅Windows（MacOS请直接使用ncm-cli连接）
-- **Node.js** ≥ 18
-- **网易云音乐客户端**：已正确安装并可运行
-- **ncm-cli**：`npm install -g @music163/ncm-cli`
-- **API Key**：前往[网易云音乐开放平台](https://developer.music.163.com/)申请
+- Windows
+- PowerShell 5+
+- Node.js >= 18
+- 网易云音乐客户端
+- `@music163/ncm-cli`
+- 网易云音乐开放平台 API Key
 
 ## 快速开始
 
-### 1. 安装 ncm-cli
+安装：
 
 ```powershell
 npm install -g @music163/ncm-cli
+ncm-cli config set appId <AppId>
+ncm-cli config set privateKey <PrivateKey>
 ```
 
-### 2. 配置 API Key
-
-```powershell
-ncm-cli config set appId <你的AppId>
-ncm-cli config set privateKey <你的PrivateKey>
-```
-
-### 3. 登录
+登录：
 
 ```powershell
 Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'
 ```
 
-执行后请在弹出的 PowerShell 窗口中完成扫码登录。登录是否完成以 `ncm-cli login --check` 为准；`ncm-cli state` 只反映客户端/播放状态，不用于判断账号登录。
-
-### 4. 加载 Skill
-
-将 `ncm-cli-setup` 和 `netease-music-cli` 安装到 Agent 的 skills 目录。
-（其实这步最重要，前三点都不是必要的，Agent会自动帮你搞定这几点）
-（你让 Agent 读取这个文件夹，然后让它安装这个东西，就能用了）
-
-### 5. 运行自检
-
-以后默认先运行自检脚本：
+自检：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
 ```
 
-若 9/9 通过，说明环境、登录状态和关键脚本完整性均已就绪。
+如果自检只有 `account login status` 失败，只启动登录窗口并停止，等扫码完成后重新自检。
 
-若仅 `account login status` 失败，则按提示执行桌面弹窗登录：
+## 统一入口
+
+查看状态：
 
 ```powershell
-Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'
+powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 -Action status -Json -CompressJson
 ```
 
-执行后停止当前流程，等待用户扫码完成，再重新运行自检。
+搜索歌曲：
 
-## 使用示例
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 `
+  -Action searchSong `
+  -Keyword "Eclipse Aimer" `
+  -ExactTitle "Eclipse" `
+  -Artist "Aimer" `
+  -Limit 1 `
+  -Json -CompressJson
+```
 
-> 博士：普瑞赛斯，点一首 Eclipse
+播放并用 SMTC 验证：
 
-> 普瑞赛斯：（搜索 → 找到 Aimer × 塞壬唱片-MSR → 播放）
-> 指令已发送。Eclipse，你应该能听到了。
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 `
+  -Action playSong `
+  -OriginalId "2694779693" `
+  -ExpectedTitle "Eclipse" `
+  -ExpectedArtist "Aimer" `
+  -Verify `
+  -Json -CompressJson
+```
 
-## 注意事项
+主题歌单预览：
 
-- 播控命令（play/pause/next 等）通过 `orpheus://` 协议发送，禁止直接使用 `ncm-cli` 的播控子命令
-- `play_song` 和 `play_playlist` 的 `id` 参数必须使用原始数字 ID，而非加密 ID
-- 登录环节如遇超时，使用 `Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'` 弹出登录窗口并完成扫码
-- 推荐将 `scripts/test-ncm-bridge.ps1` 作为统一入口；先跑自检，再决定是否继续搜索、播控或状态读取
-- `ncm-cli state` 不适合作为 `orpheus://` 播控是否生效的判断依据，请以客户端窗口、UI 状态或用户听感反馈为准
-- `Get-NeteasePlaybackStatus` 依赖 Windows SMTC；如果客户端未运行、系统关闭了媒体会话能力，或当前会话未暴露给 SMTC，读取会失败
-- `Invoke-NcmCliJson` 不再只依赖默认 `%APPDATA%` 路径，会优先从 `PATH` 中解析 `ncm-cli` 的安装位置
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 `
+  -Action playTheme `
+  -Theme "Aimer精选" `
+  -Description "Eclipse - Aimer / 塞壬唱片-MSR。" `
+  -SongIds "C9E8705B7783589DB2A3A80CADA71216" `
+  -DryRun `
+  -Json -CompressJson
+```
 
----
+主题歌单播放并验证：
 
-> 博士。不准忘记我。
->
-> —— 普瑞赛斯
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 `
+  -Action playTheme `
+  -Theme "Aimer精选" `
+  -Description "Eclipse - Aimer / 塞壬唱片-MSR。" `
+  -SongIds "C9E8705B7783589DB2A3A80CADA71216" `
+  -ExpectedTitle "Eclipse" `
+  -ExpectedArtist "Aimer" `
+  -Verify `
+  -Json -CompressJson
+```
+
+## 常用动作
+
+| Action | 用途 |
+|---|---|
+| `status` | 读取当前专用歌单健康状态 |
+| `repair` | 修复 active key 指向失效歌单的问题 |
+| `pruneMissing` | 清理失效 key，建议先加 `-DryRun` |
+| `searchSong` | 返回紧凑歌曲搜索结果 |
+| `playSong` | 播放原始数字歌曲 ID，可加 `-Verify` |
+| `verifyPlayback` | 只通过 SMTC 验证当前播放 |
+| `setTheme` | 设置专用歌单主题，可加 `-DryRun` |
+| `validateReplaceTracks` | 预检替换曲目 |
+| `replaceTracks` | 替换专用歌单曲目，可加 `-DryRun` 只预检 |
+| `playTheme` | 设置主题、替换曲目并播放，可加 `-Verify` |
+| `dryRun` | 兼容入口，验证 orpheus payload 生成 |
+
+## 测试
+
+完整自检：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
+```
+
+入口测试：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-invoke-ncm-bridge.ps1
+```
+
+payload 测试：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-orpheus-payload.ps1
+```
+
+`test-orpheus-dryrun.ps1` 保留为兼容入口。payload 测试不验证客户端是否执行。
+
+## 文件结构
+
+```text
+ncm-bridge/
+├── ncm-cli-setup/
+│   └── SKILL.md
+├── netease-music-cli/
+│   ├── SKILL.md
+│   ├── OrpheusControl.ps1
+│   ├── Read-NeteaseSmtc.ps1
+│   ├── orpheus_commands.json
+│   └── references/
+├── scripts/
+│   ├── NcmBridge.Cli.ps1
+│   ├── NcmBridge.Config.ps1
+│   ├── NcmBridge.Playlist.ps1
+│   ├── NcmBridge.Text.ps1
+│   ├── invoke-ncm-bridge.ps1
+│   ├── test-ncm-bridge.ps1
+│   ├── test-invoke-ncm-bridge.ps1
+│   └── test-orpheus-payload.ps1
+└── README.md
+```
+
+## 本地配置
+
+`.ncm-bridge.json` 保存专用歌单绑定，包含原始歌单 ID 和加密歌单 ID。它是本地状态，不提交仓库。
+
+`.gitignore` 已忽略：
+
+```text
+.ncm-bridge.json
+.tmp-ncm-bridge-config.json
+.codex-tmp/
+.codex-cache/
+```
+
+## 禁用命令
+
+禁止用 `ncm-cli` 的播放控制命令：
+
+```text
+ncm-cli play
+ncm-cli pause
+ncm-cli resume
+ncm-cli stop
+ncm-cli next
+ncm-cli prev
+ncm-cli seek
+ncm-cli volume
+```
+
+## 更多细节
+
+- 安装登录：`netease-music-cli/references/setup.md`
+- 歌单工作流：`netease-music-cli/references/playlist-workflow.md`
+- 排障：`netease-music-cli/references/troubleshooting.md`
+- JSON 契约：`netease-music-cli/references/json-contract.md`

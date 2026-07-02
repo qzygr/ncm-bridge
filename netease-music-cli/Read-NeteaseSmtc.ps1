@@ -1,5 +1,8 @@
 param(
-    [switch]$Json
+    [switch]$Json,
+    [int]$Attempts = 5,
+    [int]$RetryDelayMs = 500,
+    [int]$InitialDelayMs = 300
 )
 
 $ErrorActionPreference = "Stop"
@@ -56,6 +59,9 @@ function Get-NeteaseSmtcStatus {
             StartSeconds = $null
             EndSeconds = $null
             TimelineAvailable = $false
+            Attempt = 1
+            Attempts = 1
+            RetryDelayMs = 0
         }
     }
 
@@ -85,10 +91,73 @@ function Get-NeteaseSmtcStatus {
         StartSeconds = $startSeconds
         EndSeconds = $endSeconds
         TimelineAvailable = $timelineAvailable
+        Attempt = 1
+        Attempts = 1
+        RetryDelayMs = 0
     }
 }
 
 function Invoke-NeteaseSmtcRead {
+    param(
+        [int]$Attempts = 5,
+        [int]$RetryDelayMs = 500,
+        [int]$InitialDelayMs = 300
+    )
+
+    if ($Attempts -lt 1) { $Attempts = 1 }
+    if ($RetryDelayMs -lt 0) { $RetryDelayMs = 0 }
+    if ($InitialDelayMs -lt 0) { $InitialDelayMs = 0 }
+
+    if ($InitialDelayMs -gt 0) {
+        Start-Sleep -Milliseconds $InitialDelayMs
+    }
+
+    $lastResult = $null
+    $lastError = $null
+
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        try {
+            $result = Get-NeteaseSmtcStatus
+            $result | Add-Member -NotePropertyName Attempt -NotePropertyValue $attempt -Force
+            $result | Add-Member -NotePropertyName Attempts -NotePropertyValue $Attempts -Force
+            $result | Add-Member -NotePropertyName RetryDelayMs -NotePropertyValue $RetryDelayMs -Force
+
+            if ($result.Success -and -not [string]::IsNullOrWhiteSpace($result.Title)) {
+                return $result
+            }
+
+            $lastResult = $result
+        }
+        catch {
+            $lastError = $_.Exception.Message
+            $lastResult = [pscustomobject]@{
+                Success = $false
+                Error = "SMTC_READ_FAILED"
+                Detail = $lastError
+                Source = "smtc"
+                App = $null
+                Title = $null
+                Artist = $null
+                PlaybackStatus = $null
+                PositionSeconds = $null
+                StartSeconds = $null
+                EndSeconds = $null
+                TimelineAvailable = $false
+                Attempt = $attempt
+                Attempts = $Attempts
+                RetryDelayMs = $RetryDelayMs
+            }
+        }
+
+        if ($attempt -lt $Attempts -and $RetryDelayMs -gt 0) {
+            Start-Sleep -Milliseconds $RetryDelayMs
+        }
+    }
+
+    if ($lastResult) {
+        return $lastResult
+    }
+
     try {
         return Get-NeteaseSmtcStatus
     }
@@ -106,12 +175,15 @@ function Invoke-NeteaseSmtcRead {
             StartSeconds = $null
             EndSeconds = $null
             TimelineAvailable = $false
+            Attempt = $Attempts
+            Attempts = $Attempts
+            RetryDelayMs = $RetryDelayMs
         }
     }
 }
 
 if ($MyInvocation.InvocationName -ne ".") {
-    $result = Invoke-NeteaseSmtcRead
+    $result = Invoke-NeteaseSmtcRead -Attempts $Attempts -RetryDelayMs $RetryDelayMs -InitialDelayMs $InitialDelayMs
 
     if ($Json) {
         $result | ConvertTo-Json -Compress
@@ -122,6 +194,7 @@ if ($MyInvocation.InvocationName -ne ".") {
         "PlaybackStatus: $($result.PlaybackStatus)"
         "Timeline: $($result.PositionSeconds)|$($result.EndSeconds)"
         "TimelineAvailable: $($result.TimelineAvailable)"
+        "Attempt: $($result.Attempt)/$($result.Attempts)"
         if ($result.Detail) {
             "Detail: $($result.Detail)"
         }
