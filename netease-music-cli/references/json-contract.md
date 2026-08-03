@@ -25,6 +25,7 @@ Agent-facing scripts return a small, stable envelope:
 | Code | Meaning |
 |---|---|
 | `OK` | The action completed without a special preview, launch, or playback-verification state. Used by status, search, repair, theme update, and playlist write flows. |
+| `LOGIN_REQUIRED` | `ncm-cli login --check` did not confirm login. Do not interpret missing commands, `unknown command`, or help output gaps until login succeeds. |
 | `MISSING` | Status found a configured playlist entry that is not currently healthy or resolvable. |
 | `DRY_RUN` | A multi-step preview completed without remote writes or real playback, such as theme preview or `playTheme -DryRun`. |
 | `URL_PREVIEWED` | An `orpheus://` protocol URL was generated in dry-run mode. It was not launched and playback was not verified. |

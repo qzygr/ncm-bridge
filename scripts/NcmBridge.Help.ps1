@@ -1,6 +1,7 @@
 function New-BridgeHelpResult {
     $actionNames = @(
         "help",
+        "diagnose",
         "status",
         "repair",
         "pruneMissing",
@@ -26,6 +27,13 @@ function New-BridgeHelpResult {
                 name = "help"
                 purpose = "Return this action catalog and constraints."
                 keyParameters = @("Json", "CompressJson")
+                writesRemote = $false
+                verifiesPlayback = $false
+            }
+            [pscustomobject]@{
+                name = "diagnose"
+                purpose = "Check ncm-cli availability, login status, config presence, and optionally SMTC without remote writes."
+                keyParameters = @("ConfigPath", "Verify", "Attempts", "RetryDelayMs", "InitialDelayMs")
                 writesRemote = $false
                 verifiesPlayback = $false
             }
@@ -175,6 +183,8 @@ function New-BridgeHelpResult {
         constraints = @(
             "Use this script as the Agent entry point for common bridge operations.",
             "Prefer -Json -CompressJson for Agent calls; -CompressJson only changes output when -Json is present.",
+            "Check ncm-cli login before interpreting missing commands; logged-out command lists can be incomplete.",
+            "diagnose returns LOGIN_REQUIRED instead of treating hidden logged-out commands as version evidence.",
             "Preview real remote writes with -DryRun or validateReplaceTracks before applying changes.",
             "An orpheus:// launch, payload dry-run, or process success does not prove client playback.",
             "Only Windows SMTC verification can set playback verified=true.",
@@ -193,8 +203,8 @@ function ConvertTo-BridgeHelpText {
         "NCM bridge help",
         "Usage: $($Value.usage)",
         "Actions: $($actionNames -join ', ')",
-        "Key params: -Keyword/-ExactTitle/-Artist/-Limit for searchSong; -OriginalId for playSong; -SongIds for track replacement/playTheme; -Theme/-Description for theme actions; -Verify for SMTC verification; -DryRun for previews.",
-        "Constraints: preview remote writes first; orpheus launch/dry-run success does not prove playback; only SMTC can verify playback.",
+        "Key params: -Keyword/-ExactTitle/-Artist/-Limit for searchSong; -OriginalId for playSong; -SongIds for track replacement/playTheme; -Theme/-Description for theme actions; -Verify for SMTC verification/diagnostics; -DryRun for previews.",
+        "Constraints: check login before command diagnosis; preview remote writes first; orpheus launch/dry-run success does not prove playback; only SMTC can verify playback.",
         "Use -Json or -Json -CompressJson for the full machine-readable envelope."
     )
 }

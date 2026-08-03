@@ -120,6 +120,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 `
 |---|---|
 | `status` | 读取当前专用歌单健康状态 |
 | `help` | 输出统一入口动作、参数和约束 |
+| `diagnose` | 检查 ncm-cli、登录状态、配置文件和可选 SMTC 状态 |
 | `repair` | 修复 active key 指向失效歌单的问题 |
 | `pruneMissing` | 清理失效 key，建议先加 `-DryRun` |
 | `searchSong` | 返回紧凑歌曲搜索结果 |
@@ -130,6 +131,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 `
 | `replaceTracks` | 替换专用歌单曲目，可加 `-DryRun` 只预检 |
 | `playTheme` | 设置主题、替换曲目并播放，可加 `-Verify` |
 | `dryRun` | 兼容入口，验证 orpheus payload 生成 |
+
+`diagnose` 会先检查登录状态；如果未登录，返回 `LOGIN_REQUIRED`，不要继续根据 `ncm-cli commands`、`--help` 或 `unknown command` 判断版本或脚本问题。
 
 ## 测试
 
@@ -176,7 +179,9 @@ ncm-bridge/
 ├── scripts/
 │   ├── NcmBridge.Cli.ps1
 │   ├── NcmBridge.Config.ps1
+│   ├── NcmBridge.Diagnostics.ps1
 │   ├── NcmBridge.Help.ps1
+│   ├── NcmBridge.Playback.ps1
 │   ├── NcmBridge.Playlist.ps1
 │   ├── NcmBridge.Text.ps1
 │   ├── invoke-ncm-bridge.ps1

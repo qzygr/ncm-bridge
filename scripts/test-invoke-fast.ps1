@@ -72,6 +72,7 @@ $invokeScript = Join-Path $PSScriptRoot "invoke-ncm-bridge.ps1"
 $payloadScript = Join-Path $PSScriptRoot "test-orpheus-payload.ps1"
 $tmpRoot = Join-Path $repoRoot ".codex-tmp"
 $fastConfigPath = Join-Path $tmpRoot "test-invoke-fast.ncm-bridge.json"
+$mockBin = Join-Path $tmpRoot "mock-bin"
 
 if (-not (Test-Path $tmpRoot)) {
     New-Item -ItemType Directory -Path $tmpRoot | Out-Null
@@ -119,7 +120,9 @@ $results.Add((Invoke-TestStep -Category "integrity" -Name "required files" -Acti
         "netease-music-cli\orpheus_commands.json",
         "scripts\NcmBridge.Cli.ps1",
         "scripts\NcmBridge.Config.ps1",
+        "scripts\NcmBridge.Diagnostics.ps1",
         "scripts\NcmBridge.Help.ps1",
+        "scripts\NcmBridge.Playback.ps1",
         "scripts\NcmBridge.Text.ps1",
         "scripts\NcmBridge.Playlist.ps1",
         "scripts\repair-ncm-bridge-config.ps1",
@@ -168,7 +171,9 @@ $results.Add((Invoke-TestStep -Category "integrity" -Name "PowerShell syntax" -A
         (Join-Path $repoRoot "netease-music-cli\Read-NeteaseSmtc.ps1"),
         (Join-Path $repoRoot "scripts\NcmBridge.Cli.ps1"),
         (Join-Path $repoRoot "scripts\NcmBridge.Config.ps1"),
+        (Join-Path $repoRoot "scripts\NcmBridge.Diagnostics.ps1"),
         (Join-Path $repoRoot "scripts\NcmBridge.Help.ps1"),
+        (Join-Path $repoRoot "scripts\NcmBridge.Playback.ps1"),
         (Join-Path $repoRoot "scripts\NcmBridge.Text.ps1"),
         (Join-Path $repoRoot "scripts\NcmBridge.Playlist.ps1"),
         (Join-Path $repoRoot "scripts\get-ncm-bridge-status.ps1"),
@@ -194,12 +199,17 @@ $results.Add((Invoke-TestStep -Category "integrity" -Name "PowerShell syntax" -A
 $results.Add((Invoke-TestStep -Category "integrity" -Name "module load and functions" -Action {
     . (Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1")
     . (Join-Path $repoRoot "scripts\NcmBridge.Cli.ps1")
+    . (Join-Path $repoRoot "scripts\NcmBridge.Diagnostics.ps1")
+    . (Join-Path $repoRoot "scripts\NcmBridge.Playback.ps1")
     . (Join-Path $repoRoot "scripts\NcmBridge.Playlist.ps1")
 
     $requiredFunctions = @(
         "OrpheusControl",
         "Invoke-OrpheusCommand",
         "Invoke-NcmCliJson",
+        "Invoke-NcmCliLoginCheck",
+        "Get-NcmBridgeDiagnostics",
+        "Invoke-PlaybackVerification",
         "Invoke-NcmPlaylistControl",
         "Get-NeteasePlaybackStatus",
         "Get-OrpheusCommands",
@@ -264,6 +274,52 @@ $results.Add((Invoke-TestStep -Category "invoke-fast" -Name "compressed JSON ret
     "compressed ok"
 }))
 
+$results.Add((Invoke-TestStep -Category "invoke-fast" -Name "diagnose returns login-aware envelope" -Action {
+    $result = Invoke-BridgeJson -Arguments @("-ExecutionPolicy", "Bypass", "-File", $invokeScript, "-Action", "diagnose", "-ConfigPath", $fastConfigPath, "-Json")
+    if ($result.action -ne "diagnose") { throw "Unexpected action: $($result.action)" }
+    if (-not $result.login -or $null -eq $result.login.checked) { throw "Missing login diagnostic." }
+    if (-not $result.ncmCli) { throw "Missing ncm-cli diagnostic." }
+    if (-not $result.scriptAnalyzer) { throw "Missing PSScriptAnalyzer diagnostic." }
+    "diagnose code=$($result.code)"
+}))
+
+$results.Add((Invoke-TestStep -Category "invoke-fast" -Name "logged-out status returns LOGIN_REQUIRED before hidden command diagnosis" -Action {
+    if (-not (Test-Path $mockBin)) {
+        New-Item -ItemType Directory -Path $mockBin | Out-Null
+    }
+    $mockCliPath = Join-Path $mockBin "ncm-cli.ps1"
+    @'
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$RemainingArgs)
+
+if ($RemainingArgs.Count -ge 2 -and $RemainingArgs[0] -eq "login" -and $RemainingArgs[1] -eq "--check") {
+    '{"success":false,"message":"未登录，请执行 ncm-cli login 完成登录"}'
+    exit 0
+}
+
+if ($RemainingArgs.Count -ge 1 -and $RemainingArgs[0] -eq "--version") {
+    "0.1.6-mock"
+    exit 0
+}
+
+"error: unknown command '$($RemainingArgs -join ' ')'" | Write-Error
+exit 1
+'@ | Set-Content -Path $mockCliPath -Encoding UTF8
+
+    $oldPath = $env:PATH
+    try {
+        $env:PATH = "$mockBin;$oldPath"
+        $result = Invoke-BridgeJson -Arguments @("-ExecutionPolicy", "Bypass", "-File", $invokeScript, "-Action", "status", "-ConfigPath", $fastConfigPath, "-Json")
+    }
+    finally {
+        $env:PATH = $oldPath
+    }
+
+    if ($result.action -ne "status") { throw "Unexpected action: $($result.action)" }
+    if ($result.code -ne "LOGIN_REQUIRED") { throw "Unexpected code: $($result.code)" }
+    if (-not $result.login -or $result.login.success) { throw "Expected failed login diagnostic." }
+    "login gate ok"
+}))
+
 $summary = [pscustomobject]@{
     Total = $results.Count
     Passed = @($results | Where-Object { $_.Passed }).Count
@@ -274,7 +330,7 @@ $report = [pscustomobject]@{
     Success = ($summary.Failed -eq 0)
     Layer = "fast"
     Guarantees = @(
-        "no ncm-cli network calls",
+        "no ncm-cli search or playlist mutation calls",
         "no remote writes",
         "no real playback",
         "no SMTC reads"

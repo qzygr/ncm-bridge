@@ -60,6 +60,7 @@ ncm-cli login --check
 ```
 
 > 实际登录状态以 `ncm-cli login --check` 为准。`ncm-cli state` 只反映客户端/播放状态，不用于判断账号登录。
+> 在未登录状态下，`ncm-cli` 可能隐藏或缺失部分子命令；排查 `playlist`、`search`、`commands`、`--help` 输出异常前，必须先完成 `ncm-cli login --check`。
 
 ### 第五步：整体验证
 
@@ -80,7 +81,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
 解释规则如下：
 
 - `9/9` 通过：环境、登录状态、关键脚本与命令注册表均已就绪
-- 若仅 `account login status` 失败：不要继续执行后续命令，改用桌面弹窗登录流程
+- 若 `account login status` 失败：不要继续执行后续命令，也不要根据缺失命令判断版本或脚本问题；改用桌面弹窗登录流程
 
 ```powershell
 Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'
