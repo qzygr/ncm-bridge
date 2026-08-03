@@ -132,3 +132,17 @@ function Invoke-NcmPlaylistControl {
     $arguments += @("--output", "json")
     Invoke-NcmCliJson -Arguments $arguments
 }
+
+function ConvertTo-NcmBridgeInsertOrder {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$SongIds
+    )
+
+    $values = @($SongIds)
+    $reversed = New-Object System.Collections.Generic.List[string]
+    for ($index = $values.Count - 1; $index -ge 0; $index--) {
+        $reversed.Add("$($values[$index])")
+    }
+
+    @($reversed)
+}

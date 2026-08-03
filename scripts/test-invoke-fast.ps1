@@ -224,6 +224,17 @@ $results.Add((Invoke-TestStep -Category "integrity" -Name "module load and funct
     "Required functions are available"
 }))
 
+$results.Add((Invoke-TestStep -Category "integrity" -Name "playlist insertion preserves requested order" -Action {
+    . (Join-Path $repoRoot "scripts\NcmBridge.Playlist.ps1")
+    $source = @("A", "B", "C")
+    $insertOrder = @(ConvertTo-NcmBridgeInsertOrder -SongIds $source)
+    $effectiveOrder = @($insertOrder)[($insertOrder.Count - 1)..0]
+    if (($effectiveOrder -join ",") -ne "A,B,C") {
+        throw "Unexpected effective order: $($effectiveOrder -join ',')"
+    }
+    "requested=A,B,C; insert=C,B,A; effective=A,B,C"
+}))
+
 $results.Add((Invoke-TestStep -Category "invoke-fast" -Name "orpheus dryRun action returns JSON" -Action {
     $result = Invoke-BridgeJson -Arguments @("-ExecutionPolicy", "Bypass", "-File", $invokeScript, "-Action", "dryRun", "-Json")
     if (-not $result.Success -and -not $result.success) { throw "DryRun action failed." }

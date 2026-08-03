@@ -1,27 +1,5 @@
 $ErrorActionPreference = "Stop"
 
-function Test-NcmBridgeActionRequiresLogin {
-    param(
-        [Parameter(Mandatory = $true)][string]$Action,
-        [bool]$DryRun = $false,
-        [bool]$Verify = $false
-    )
-
-    switch ($Action) {
-        "status" { return $true }
-        "repair" { return $true }
-        "pruneMissing" { return $true }
-        "searchSong" { return $true }
-        "validateReplaceTracks" { return $true }
-        "replaceTracks" { return $true }
-        "playTheme" { return $true }
-        "setTheme" { return -not $DryRun }
-        "verifyPlayback" { return $true }
-        "playSong" { return $Verify -and -not $DryRun }
-        default { return $false }
-    }
-}
-
 function Get-NcmBridgeCommandInfo {
     $command = Get-Command "ncm-cli" -ErrorAction SilentlyContinue
     if (-not $command) {

@@ -34,10 +34,7 @@ $verifyInitialDelayMs = $InitialDelayMs
 
 . (Join-Path $PSScriptRoot "NcmBridge.Config.ps1")
 . (Join-Path $PSScriptRoot "NcmBridge.Cli.ps1")
-. (Join-Path $PSScriptRoot "NcmBridge.Diagnostics.ps1")
-. (Join-Path $PSScriptRoot "NcmBridge.Playback.ps1")
 . (Join-Path $PSScriptRoot "NcmBridge.Text.ps1")
-. (Join-Path $PSScriptRoot "NcmBridge.Help.ps1")
 
 if (-not $ConfigPath) {
     $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -145,10 +142,12 @@ if ($requiresLogin) {
 
 $result = switch ($Action) {
     "help" {
+        . (Join-Path $PSScriptRoot "NcmBridge.Help.ps1")
         New-BridgeHelpResult
     }
 
     "diagnose" {
+        . (Join-Path $PSScriptRoot "NcmBridge.Diagnostics.ps1")
         Get-NcmBridgeDiagnostics `
             -ConfigPath $ConfigPath `
             -IncludeSmtc:([bool]$Verify) `
@@ -226,6 +225,7 @@ $result = switch ($Action) {
     }
 
     "verifyPlayback" {
+        . (Join-Path $PSScriptRoot "NcmBridge.Playback.ps1")
         Invoke-PlaybackVerification `
             -ExpectedTitle $ExpectedTitle `
             -ExpectedArtist $ExpectedArtist `
@@ -241,6 +241,7 @@ $result = switch ($Action) {
         . (Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1")
         $url = Invoke-OrpheusCommand -Name "play_song" -Params @{ id = "$OriginalId" } -DryRun:$DryRun 6>$null
         $verification = if ($Verify -and -not $DryRun) {
+            . (Join-Path $PSScriptRoot "NcmBridge.Playback.ps1")
             Invoke-PlaybackVerification `
                 -ExpectedTitle $ExpectedTitle `
                 -ExpectedArtist $ExpectedArtist `
@@ -346,6 +347,7 @@ $result = switch ($Action) {
         if (-not [string]::IsNullOrWhiteSpace($Description)) { $args += @("-Description", $Description) }
         $playThemeResult = Invoke-BridgeScript -Arguments $args
         if ($Verify) {
+            . (Join-Path $PSScriptRoot "NcmBridge.Playback.ps1")
             $verification = Invoke-PlaybackVerification `
                 -ExpectedTitle $ExpectedTitle `
                 -ExpectedArtist $ExpectedArtist `

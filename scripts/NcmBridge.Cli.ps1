@@ -1,5 +1,27 @@
 $ErrorActionPreference = "Stop"
 
+function Test-NcmBridgeActionRequiresLogin {
+    param(
+        [Parameter(Mandatory = $true)][string]$Action,
+        [bool]$DryRun = $false,
+        [bool]$Verify = $false
+    )
+
+    switch ($Action) {
+        "status" { return $true }
+        "repair" { return $true }
+        "pruneMissing" { return $true }
+        "searchSong" { return $true }
+        "validateReplaceTracks" { return $true }
+        "replaceTracks" { return $true }
+        "playTheme" { return $true }
+        "setTheme" { return -not $DryRun }
+        "verifyPlayback" { return $true }
+        "playSong" { return $Verify -and -not $DryRun }
+        default { return $false }
+    }
+}
+
 function Invoke-NcmCliLoginCheck {
     $command = Get-Command "ncm-cli" -ErrorAction Stop
     $raw = & ncm-cli login --check
@@ -47,20 +69,101 @@ function Assert-NcmCliLoggedIn {
 }
 
 function Invoke-NcmCliJson {
+    [CmdletBinding()]
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
 
     $null = Assert-NcmCliLoggedIn
-    $output = & ncm-cli @Arguments
-    if (-not $output) {
+
+    $command = Get-Command "ncm-cli" -ErrorAction SilentlyContinue
+    $cliPath = $null
+    if ($command -and $command.Source) {
+        $commandDir = Split-Path -Parent $command.Source
+        $candidatePath = Join-Path $commandDir "node_modules\@music163\ncm-cli\dist\index.js"
+        if (Test-Path -LiteralPath $candidatePath) {
+            $cliPath = $candidatePath
+        }
+    }
+
+    if (-not $cliPath) {
+        $fallbackPath = Join-Path $env:APPDATA "npm\node_modules\@music163\ncm-cli\dist\index.js"
+        if (Test-Path -LiteralPath $fallbackPath) {
+            $cliPath = $fallbackPath
+        }
+    }
+
+    if (-not $cliPath) {
+        throw "ncm-cli entry point was not found. Install @music163/ncm-cli globally."
+    }
+
+    function ConvertTo-WindowsArgument {
+        param([Parameter(Mandatory = $true)][string]$Value)
+
+        if ($Value -notmatch '[\s"]') {
+            return $Value
+        }
+
+        $builder = [System.Text.StringBuilder]::new()
+        [void]$builder.Append('"')
+        $backslashCount = 0
+
+        foreach ($char in $Value.ToCharArray()) {
+            if ($char -eq '\') {
+                $backslashCount++
+                continue
+            }
+
+            if ($char -eq '"') {
+                [void]$builder.Append(('\' * (($backslashCount * 2) + 1)))
+                [void]$builder.Append('"')
+                $backslashCount = 0
+                continue
+            }
+
+            if ($backslashCount -gt 0) {
+                [void]$builder.Append(('\' * $backslashCount))
+                $backslashCount = 0
+            }
+            [void]$builder.Append($char)
+        }
+
+        if ($backslashCount -gt 0) {
+            [void]$builder.Append(('\' * ($backslashCount * 2)))
+        }
+        [void]$builder.Append('"')
+        $builder.ToString()
+    }
+
+    $allArguments = @($cliPath) + $Arguments
+    $argumentText = ($allArguments | ForEach-Object { ConvertTo-WindowsArgument -Value "$_" }) -join " "
+    $processInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $processInfo.FileName = "node"
+    $processInfo.Arguments = $argumentText
+    $processInfo.UseShellExecute = $false
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.RedirectStandardError = $true
+    $processInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    $processInfo.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+
+    $process = [System.Diagnostics.Process]::Start($processInfo)
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+
+    if ($stderr) {
+        throw "ncm-cli stderr: $stderr"
+    }
+    if ($process.ExitCode -ne 0) {
+        throw "ncm-cli exited with code $($process.ExitCode)`n$stdout"
+    }
+    if (-not $stdout.Trim()) {
         throw "ncm-cli returned no output: $($Arguments -join ' ')"
     }
 
-    $raw = $output -join "`n"
     try {
-        return $raw | ConvertFrom-Json -ErrorAction Stop
+        return $stdout | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
-        throw "ncm-cli output is not valid JSON: $raw"
+        throw "ncm-cli output is not valid JSON: $stdout"
     }
 }
 

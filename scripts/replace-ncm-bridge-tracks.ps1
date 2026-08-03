@@ -55,6 +55,8 @@ if ($invalidSongIds.Count -gt 0) {
     throw "SongIds must be encrypted 32-character hex IDs. Invalid: $($invalidSongIds -join ', ')"
 }
 
+$insertSongIds = ConvertTo-NcmBridgeInsertOrder -SongIds $targetSongIds
+
 $tracksResponse = Invoke-NcmCliJson -Arguments @("playlist", "tracks", "--playlistId", $playlistId, "--limit", "500", "--offset", "0", "--output", "json")
 Assert-NcmCliOk -Response $tracksResponse -Message "Failed to read playlist tracks"
 
@@ -74,6 +76,7 @@ if ($ValidateOnly) {
         existingCount = $existingSongIds.Count
         targetCount = $targetSongIds.Count
         targetSongIds = $targetSongIds
+        insertSongIds = $insertSongIds
     }
 
     if ($outputJson) {
@@ -89,12 +92,21 @@ if ($ValidateOnly) {
 }
 
 if ($existingSongIds.Count -gt 0) {
-    $null = Invoke-NcmPlaylistControl -Action remove -PlaylistId $playlistId -SongIds $existingSongIds
+    $removeResponse = Invoke-NcmPlaylistControl -Action remove -PlaylistId $playlistId -SongIds $existingSongIds
+    Assert-NcmCliOk -Response $removeResponse -Message "Failed to remove existing playlist tracks"
     $removed = $existingSongIds
 }
 
-$null = Invoke-NcmPlaylistControl -Action add -PlaylistId $playlistId -SongIds $targetSongIds
-$added = $targetSongIds
+$addResponse = Invoke-NcmPlaylistControl -Action add -PlaylistId $playlistId -SongIds $insertSongIds
+Assert-NcmCliOk -Response $addResponse -Message "Failed to add replacement playlist tracks"
+$added = $insertSongIds
+
+$finalTracksResponse = Invoke-NcmCliJson -Arguments @("playlist", "tracks", "--playlistId", $playlistId, "--limit", "500", "--offset", "0", "--output", "json")
+Assert-NcmCliOk -Response $finalTracksResponse -Message "Failed to verify replacement playlist tracks"
+$finalSongIds = @($finalTracksResponse.data | ForEach-Object { "$($_.id)" })
+if (($finalSongIds -join ",") -ne ($targetSongIds -join ",")) {
+    throw "Playlist replacement verification failed. Expected order: $($targetSongIds -join ','); actual order: $($finalSongIds -join ',')"
+}
 
 $result = [pscustomobject]@{
     success = $true
@@ -106,6 +118,9 @@ $result = [pscustomobject]@{
     playlistId = $playlistId
     removedCount = $removed.Count
     addedCount = $added.Count
+    verified = $true
+    requestedSongIds = $targetSongIds
+    insertedSongIds = $insertSongIds
     removedSongIds = $removed
     addedSongIds = $added
 }
