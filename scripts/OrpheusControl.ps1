@@ -130,6 +130,23 @@ function Get-NeteasePlaybackStatus {
         return $null
     }
 
+    # PowerShell 7 无法直接解析 Windows.Media.Control WinRT 类型，转交给 Windows PowerShell 5.1 读取。
+    if ($PSEdition -eq "Core" -and (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $arguments = @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $smtcScriptPath,
+            "-Json", "-Attempts", "$Attempts", "-RetryDelayMs", "$RetryDelayMs", "-InitialDelayMs", "$InitialDelayMs"
+        )
+        $raw = & powershell.exe @arguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "Windows PowerShell SMTC reader failed with exit code $LASTEXITCODE."
+        }
+        $text = ($raw -join "`n").Trim()
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            throw "Windows PowerShell SMTC reader returned no output."
+        }
+        return ($text | ConvertFrom-Json -ErrorAction Stop)
+    }
+
     Invoke-NeteaseSmtcRead -Attempts $Attempts -RetryDelayMs $RetryDelayMs -InitialDelayMs $InitialDelayMs
 }
 

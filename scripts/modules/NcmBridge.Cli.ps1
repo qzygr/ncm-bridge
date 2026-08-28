@@ -6,6 +6,15 @@
 
 $ErrorActionPreference = "Stop"
 
+# ncm-cli 返回 UTF-8 JSON；显式设置子进程输出编码，避免 Windows PowerShell 按本地代码页解码中文。
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+}
+catch {
+    # 某些宿主不允许修改控制台编码，后续解析仍会使用实际返回内容。
+}
+
 <#
 主要作用：判断某个桥接动作是否必须先确认 ncm-cli 已登录。
 输入：统一入口的动作名称。

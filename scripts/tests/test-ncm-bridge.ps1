@@ -1,16 +1,30 @@
 ﻿<#
-主要作用：聚合快速和可选联网测试，是仓库推荐的总自检入口。
-输入：Json、Live 与 IncludePlayback 开关。
+主要作用：聚合前置、在线、播放和歌单写入测试，是仓库推荐的总自检入口。
+输入：Json 与按副作用分层的开关；默认只运行前置完整性测试。
 输出：分层测试汇总及逐项结果；失败时以非零退出码结束。
 #>
 
 param(
     [switch]$Json,
+    [switch]$Online,
+    [switch]$Playback,
+    [switch]$PlaylistWrite,
+    [switch]$ApplyPlaylistWrite,
+    [string]$PlaylistSongIds = "",
     [switch]$Live,
     [switch]$IncludePlayback
 )
 
 $ErrorActionPreference = "Stop"
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+}
+catch {
+    # 非交互宿主可能禁止修改编码，保持默认输出即可继续测试。
+}
+if ($Live) { $Online = $true }
+if ($IncludePlayback) { $Playback = $true }
 
 <#
 主要作用：构造统一的聚合测试结果项。
@@ -101,21 +115,27 @@ function Test-IsWindowsEnvironment {
 
 $scriptsRoot = Split-Path -Parent $PSScriptRoot
 $repoRoot = Split-Path -Parent $scriptsRoot
-$fastScript = Join-Path $PSScriptRoot "test-invoke-fast.ps1"
-$liveScript = Join-Path $PSScriptRoot "test-invoke-live.ps1"
+$preflightScript = Join-Path $PSScriptRoot "test-preflight.ps1"
+$onlineScript = Join-Path $PSScriptRoot "test-online.ps1"
+$playbackScript = Join-Path $PSScriptRoot "test-playback.ps1"
+$playlistWriteScript = Join-Path $PSScriptRoot "test-playlist-write.ps1"
 
 $results = New-Object System.Collections.Generic.List[object]
 
-$results.Add((Invoke-TestStep -Category "fast" -Name "offline invoke layer" -Action {
-    $arguments = @("-ExecutionPolicy", "Bypass", "-File", $fastScript, "-Json")
+$results.Add((Invoke-TestStep -Category "preflight" -Name "environment and Orpheus integrity" -Action {
+    $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $preflightScript, "-Json")
     $raw = & powershell @arguments
+    $report = $null
+    try { $report = ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop }
+    catch { throw "test-preflight.ps1 returned invalid JSON: $($raw -join ' ')" }
     if ($LASTEXITCODE -ne 0) {
-        throw "test-invoke-fast.ps1 failed."
+        $affected = @($report.AffectedComponents) -join ", "
+        throw "test-preflight.ps1 failed. Affected components: $affected"
     }
 
-    $report = ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
     if (-not $report.Success -and -not $report.success) {
-        throw "test-invoke-fast.ps1 reported failure."
+        $affected = @($report.AffectedComponents) -join ", "
+        throw "test-preflight.ps1 reported failure. Affected components: $affected"
     }
 
     "$($report.Summary.Passed)/$($report.Summary.Total) passed"
@@ -136,25 +156,47 @@ $results.Add((Invoke-TestStep -Category "environment" -Name "Node.js availabilit
     "Node.js $nodeVersionText"
 }))
 
-if ($Live) {
-    $results.Add((Invoke-TestStep -Category "live" -Name "online invoke layer" -Action {
-        $arguments = @("-ExecutionPolicy", "Bypass", "-File", $liveScript, "-Json")
-        if ($IncludePlayback) { $arguments += "-IncludePlayback" }
+if ($Online) {
+    $results.Add((Invoke-TestStep -Category "online" -Name "login and read-only online operations" -Action {
+        $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $onlineScript, "-Json")
         $raw = & powershell @arguments
         if ($LASTEXITCODE -ne 0) {
-            throw "test-invoke-live.ps1 failed."
+            throw "test-online.ps1 failed."
         }
 
         $report = ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
         if (-not $report.Success -and -not $report.success) {
-            throw "test-invoke-live.ps1 reported failure."
+            throw "test-online.ps1 reported failure."
         }
 
         "$($report.Summary.Passed)/$($report.Summary.Total) passed"
     }))
 }
 else {
-    $results.Add((New-TestResult -Category "live" -Name "online invoke layer" -Passed $true -Detail "Skipped. Re-run with -Live for search/SMTC checks, add -IncludePlayback for real playback."))
+    $results.Add((New-TestResult -Category "online" -Name "login and read-only online operations" -Passed $true -Detail "Skipped. Re-run with -Online for login, search, status, and SMTC checks."))
+}
+
+if ($Playback) {
+    $results.Add((Invoke-TestStep -Category "playback" -Name "real playback verified by SMTC" -Action {
+        $raw = & powershell -NoProfile -ExecutionPolicy Bypass -File $playbackScript -Json
+        if ($LASTEXITCODE -ne 0) { throw "test-playback.ps1 failed: $($raw -join ' ')" }
+        $report = ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
+        if (-not $report.Success) { throw "test-playback.ps1 reported failure." }
+        "$($report.Summary.Passed)/$($report.Summary.Total) passed"
+    }))
+}
+
+if ($PlaylistWrite) {
+    $results.Add((Invoke-TestStep -Category "playlist-write" -Name "playlist replacement validation" -Action {
+        if ([string]::IsNullOrWhiteSpace($PlaylistSongIds)) { throw "-PlaylistSongIds is required with -PlaylistWrite." }
+        $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $playlistWriteScript, "-SongIds", $PlaylistSongIds, "-Json")
+        if ($ApplyPlaylistWrite) { $arguments += "-Apply" }
+        $raw = & powershell @arguments
+        if ($LASTEXITCODE -ne 0) { throw "test-playlist-write.ps1 failed: $($raw -join ' ')" }
+        $report = ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
+        if (-not $report.Success) { throw "test-playlist-write.ps1 reported failure." }
+        "$($report.Summary.Passed)/$($report.Summary.Total) passed"
+    }))
 }
 
 $summary = [pscustomobject]@{
@@ -162,13 +204,15 @@ $summary = [pscustomobject]@{
     Passed = @($results | Where-Object { $_.Passed }).Count
     Failed = @($results | Where-Object { -not $_.Passed }).Count
 }
+$affectedComponents = @($results | Where-Object { -not $_.Passed } | ForEach-Object { $_.Category } | Select-Object -Unique)
 
 $report = [pscustomobject]@{
     Success = ($summary.Failed -eq 0)
-    Layer = if ($Live) { "fast+live" } else { "fast" }
-    IncludesPlayback = [bool]$IncludePlayback
+    Layer = "layered"
+    IncludesPlayback = [bool]$Playback
     Summary = $summary
-    Results = $results
+    AffectedComponents = $affectedComponents
+    Results = @($results | ForEach-Object { $_ })
 }
 
 if ($Json) {
