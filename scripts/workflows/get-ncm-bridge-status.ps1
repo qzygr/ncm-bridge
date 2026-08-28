@@ -16,9 +16,11 @@ param(
 $ErrorActionPreference = "Stop"
 $outputJson = [bool]$Json
 
-. (Join-Path $PSScriptRoot "NcmBridge.Cli.ps1")
-. (Join-Path $PSScriptRoot "NcmBridge.Config.ps1")
-. (Join-Path $PSScriptRoot "NcmBridge.Playlist.ps1")
+$scriptsRoot = Split-Path -Parent $PSScriptRoot
+$modulesRoot = Join-Path $scriptsRoot "modules"
+. (Join-Path $modulesRoot "NcmBridge.Cli.ps1")
+. (Join-Path $modulesRoot "NcmBridge.Config.ps1")
+. (Join-Path $modulesRoot "NcmBridge.Playlist.ps1")
 
 <#
 主要作用：将本地绑定条目和远端查询结果整理为统一状态项。

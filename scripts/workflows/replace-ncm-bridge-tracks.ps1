@@ -17,16 +17,18 @@ param(
 $ErrorActionPreference = "Stop"
 $outputJson = [bool]$Json
 
-. (Join-Path $PSScriptRoot "NcmBridge.Cli.ps1")
-. (Join-Path $PSScriptRoot "NcmBridge.Config.ps1")
-. (Join-Path $PSScriptRoot "NcmBridge.Playlist.ps1")
+$scriptsRoot = Split-Path -Parent $PSScriptRoot
+$modulesRoot = Join-Path $scriptsRoot "modules"
+. (Join-Path $modulesRoot "NcmBridge.Cli.ps1")
+. (Join-Path $modulesRoot "NcmBridge.Config.ps1")
+. (Join-Path $modulesRoot "NcmBridge.Playlist.ps1")
 
 if (-not $ConfigPath) {
-    $repoRoot = Split-Path -Parent $PSScriptRoot
+    $repoRoot = Split-Path -Parent $scriptsRoot
     $ConfigPath = Join-Path $repoRoot ".ncm-bridge.json"
 }
 else {
-    $repoRoot = Split-Path -Parent $PSScriptRoot
+    $repoRoot = Split-Path -Parent $scriptsRoot
 }
 
 $playlistKeyValue = $PlaylistKey.Trim()

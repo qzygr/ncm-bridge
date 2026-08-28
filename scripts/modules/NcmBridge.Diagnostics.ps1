@@ -107,9 +107,10 @@ function Get-NcmBridgeDiagnostics {
 
     if ($IncludeSmtc -and $loginInfo.success) {
         if (-not $RepoRoot) {
-            $RepoRoot = Split-Path -Parent $PSScriptRoot
+            $scriptsRoot = Split-Path -Parent $PSScriptRoot
+            $RepoRoot = Split-Path -Parent $scriptsRoot
         }
-        . (Join-Path $RepoRoot "netease-music-cli\OrpheusControl.ps1")
+        . (Join-Path $RepoRoot "scripts\OrpheusControl.ps1")
         $smtc = Get-NeteasePlaybackStatus -Attempts $SmtcAttempts -RetryDelayMs $SmtcRetryDelayMs -InitialDelayMs $SmtcInitialDelayMs
     }
 

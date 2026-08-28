@@ -70,7 +70,7 @@ function Invoke-OrpheusCommand {
     )
 
     if (-not $RegistryPath) {
-        $RegistryPath = Join-Path $PSScriptRoot "orpheus_commands.json"
+        $RegistryPath = Join-Path $PSScriptRoot "protocol\orpheus_commands.json"
     }
 
     if (-not (Test-Path $RegistryPath)) {
@@ -142,7 +142,7 @@ function Get-OrpheusCommands {
     param([string]$RegistryPath = $null)
 
     if (-not $RegistryPath) {
-        $RegistryPath = Join-Path $PSScriptRoot "orpheus_commands.json"
+        $RegistryPath = Join-Path $PSScriptRoot "protocol\orpheus_commands.json"
     }
 
     if (-not (Test-Path $RegistryPath)) {

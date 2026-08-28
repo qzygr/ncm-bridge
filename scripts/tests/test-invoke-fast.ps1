@@ -98,8 +98,9 @@ function Invoke-BridgeJson {
     ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
-$invokeScript = Join-Path $PSScriptRoot "invoke-ncm-bridge.ps1"
+$scriptsRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent $scriptsRoot
+$invokeScript = Join-Path $scriptsRoot "entry\invoke-ncm-bridge.ps1"
 $payloadScript = Join-Path $PSScriptRoot "test-orpheus-payload.ps1"
 $tmpRoot = Join-Path $repoRoot ".codex-tmp"
 $fastConfigPath = Join-Path $tmpRoot "test-invoke-fast.ncm-bridge.json"
@@ -143,26 +144,24 @@ $results.Add((Invoke-TestStep -Category "environment" -Name "PowerShell version"
 
 $results.Add((Invoke-TestStep -Category "integrity" -Name "required files" -Action {
     $requiredFiles = @(
-        "README.md",
-        "ncm-cli-setup\SKILL.md",
-        "netease-music-cli\SKILL.md",
-        "netease-music-cli\OrpheusControl.ps1",
-        "netease-music-cli\Read-NeteaseSmtc.ps1",
-        "netease-music-cli\orpheus_commands.json",
-        "scripts\NcmBridge.Cli.ps1",
-        "scripts\NcmBridge.Config.ps1",
-        "scripts\NcmBridge.Diagnostics.ps1",
-        "scripts\NcmBridge.Help.ps1",
-        "scripts\NcmBridge.Playback.ps1",
-        "scripts\NcmBridge.Text.ps1",
-        "scripts\NcmBridge.Playlist.ps1",
-        "scripts\repair-ncm-bridge-config.ps1",
-        "scripts\invoke-ncm-bridge.ps1",
-        "scripts\test-invoke-fast.ps1",
-        "scripts\test-invoke-live.ps1",
-        "scripts\test-invoke-ncm-bridge.ps1",
-        "scripts\test-ncm-bridge.ps1",
-        "scripts\test-orpheus-payload.ps1"
+        "SKILL.md",
+        "scripts\OrpheusControl.ps1",
+        "scripts\Read-NeteaseSmtc.ps1",
+        "scripts\protocol\orpheus_commands.json",
+        "scripts\modules\NcmBridge.Cli.ps1",
+        "scripts\modules\NcmBridge.Config.ps1",
+        "scripts\modules\NcmBridge.Diagnostics.ps1",
+        "scripts\modules\NcmBridge.Help.ps1",
+        "scripts\modules\NcmBridge.Playback.ps1",
+        "scripts\modules\NcmBridge.Text.ps1",
+        "scripts\modules\NcmBridge.Playlist.ps1",
+        "scripts\workflows\repair-ncm-bridge-config.ps1",
+        "scripts\entry\invoke-ncm-bridge.ps1",
+        "scripts\tests\test-invoke-fast.ps1",
+        "scripts\tests\test-invoke-live.ps1",
+        "scripts\tests\test-invoke-ncm-bridge.ps1",
+        "scripts\tests\test-ncm-bridge.ps1",
+        "scripts\tests\test-orpheus-payload.ps1"
     )
 
     $missing = @()
@@ -181,7 +180,7 @@ $results.Add((Invoke-TestStep -Category "integrity" -Name "required files" -Acti
 }))
 
 $results.Add((Invoke-TestStep -Category "integrity" -Name "orpheus registry" -Action {
-    $registryPath = Join-Path $repoRoot "netease-music-cli\orpheus_commands.json"
+    $registryPath = Join-Path $repoRoot "scripts\protocol\orpheus_commands.json"
     $registry = Get-Content $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
     if (-not $registry.commands -or $registry.commands.Count -eq 0) {
         throw "Registry commands list is empty."
@@ -198,27 +197,27 @@ $results.Add((Invoke-TestStep -Category "integrity" -Name "orpheus registry" -Ac
 
 $results.Add((Invoke-TestStep -Category "integrity" -Name "PowerShell syntax" -Action {
     $paths = @(
-        (Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1"),
-        (Join-Path $repoRoot "netease-music-cli\Read-NeteaseSmtc.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Cli.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Config.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Diagnostics.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Help.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Playback.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Text.ps1"),
-        (Join-Path $repoRoot "scripts\NcmBridge.Playlist.ps1"),
-        (Join-Path $repoRoot "scripts\get-ncm-bridge-status.ps1"),
-        (Join-Path $repoRoot "scripts\init-ncm-bridge-playlist.ps1"),
-        (Join-Path $repoRoot "scripts\invoke-ncm-bridge.ps1"),
-        (Join-Path $repoRoot "scripts\repair-ncm-bridge-config.ps1"),
-        (Join-Path $repoRoot "scripts\replace-ncm-bridge-tracks.ps1"),
-        (Join-Path $repoRoot "scripts\set-ncm-bridge-theme.ps1"),
-        (Join-Path $repoRoot "scripts\play-ncm-bridge-theme.ps1"),
-        (Join-Path $repoRoot "scripts\test-invoke-fast.ps1"),
-        (Join-Path $repoRoot "scripts\test-invoke-live.ps1"),
-        (Join-Path $repoRoot "scripts\test-invoke-ncm-bridge.ps1"),
-        (Join-Path $repoRoot "scripts\test-ncm-bridge.ps1"),
-        (Join-Path $repoRoot "scripts\test-orpheus-payload.ps1")
+        (Join-Path $repoRoot "scripts\OrpheusControl.ps1"),
+        (Join-Path $repoRoot "scripts\Read-NeteaseSmtc.ps1"),
+        (Join-Path $repoRoot "scripts\modules\NcmBridge.Cli.ps1"),
+        (Join-Path $repoRoot "scripts\modules\NcmBridge.Config.ps1"),
+        (Join-Path $repoRoot "scripts\modules\NcmBridge.Diagnostics.ps1"),
+        (Join-Path $repoRoot "scripts\modules\NcmBridge.Help.ps1"),
+        (Join-Path $repoRoot "scripts\modules\NcmBridge.Playback.ps1"),
+        (Join-Path $repoRoot "scripts\modules\NcmBridge.Text.ps1"),
+        (Join-Path $repoRoot "scripts\modules\NcmBridge.Playlist.ps1"),
+        (Join-Path $repoRoot "scripts\workflows\get-ncm-bridge-status.ps1"),
+        (Join-Path $repoRoot "scripts\workflows\init-ncm-bridge-playlist.ps1"),
+        (Join-Path $repoRoot "scripts\entry\invoke-ncm-bridge.ps1"),
+        (Join-Path $repoRoot "scripts\workflows\repair-ncm-bridge-config.ps1"),
+        (Join-Path $repoRoot "scripts\workflows\replace-ncm-bridge-tracks.ps1"),
+        (Join-Path $repoRoot "scripts\workflows\set-ncm-bridge-theme.ps1"),
+        (Join-Path $repoRoot "scripts\workflows\play-ncm-bridge-theme.ps1"),
+        (Join-Path $repoRoot "scripts\tests\test-invoke-fast.ps1"),
+        (Join-Path $repoRoot "scripts\tests\test-invoke-live.ps1"),
+        (Join-Path $repoRoot "scripts\tests\test-invoke-ncm-bridge.ps1"),
+        (Join-Path $repoRoot "scripts\tests\test-ncm-bridge.ps1"),
+        (Join-Path $repoRoot "scripts\tests\test-orpheus-payload.ps1")
     )
 
     foreach ($path in $paths) {
@@ -228,11 +227,11 @@ $results.Add((Invoke-TestStep -Category "integrity" -Name "PowerShell syntax" -A
 }))
 
 $results.Add((Invoke-TestStep -Category "integrity" -Name "module load and functions" -Action {
-    . (Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1")
-    . (Join-Path $repoRoot "scripts\NcmBridge.Cli.ps1")
-    . (Join-Path $repoRoot "scripts\NcmBridge.Diagnostics.ps1")
-    . (Join-Path $repoRoot "scripts\NcmBridge.Playback.ps1")
-    . (Join-Path $repoRoot "scripts\NcmBridge.Playlist.ps1")
+    . (Join-Path $repoRoot "scripts\OrpheusControl.ps1")
+    . (Join-Path $repoRoot "scripts\modules\NcmBridge.Cli.ps1")
+    . (Join-Path $repoRoot "scripts\modules\NcmBridge.Diagnostics.ps1")
+    . (Join-Path $repoRoot "scripts\modules\NcmBridge.Playback.ps1")
+    . (Join-Path $repoRoot "scripts\modules\NcmBridge.Playlist.ps1")
 
     $requiredFunctions = @(
         "OrpheusControl",
@@ -256,7 +255,7 @@ $results.Add((Invoke-TestStep -Category "integrity" -Name "module load and funct
 }))
 
 $results.Add((Invoke-TestStep -Category "integrity" -Name "playlist insertion preserves requested order" -Action {
-    . (Join-Path $repoRoot "scripts\NcmBridge.Playlist.ps1")
+    . (Join-Path $repoRoot "scripts\modules\NcmBridge.Playlist.ps1")
     $source = @("A", "B", "C")
     $insertOrder = @(ConvertTo-NcmBridgeInsertOrder -SongIds $source)
     $effectiveOrder = @($insertOrder)[($insertOrder.Count - 1)..0]

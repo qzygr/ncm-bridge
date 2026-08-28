@@ -99,7 +99,8 @@ function Test-IsWindowsEnvironment {
     return [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$scriptsRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent $scriptsRoot
 $fastScript = Join-Path $PSScriptRoot "test-invoke-fast.ps1"
 $liveScript = Join-Path $PSScriptRoot "test-invoke-live.ps1"
 

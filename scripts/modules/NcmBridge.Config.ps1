@@ -12,7 +12,8 @@ $ErrorActionPreference = "Stop"
 输出：.ncm-bridge.json 的绝对路径。
 #>
 function Get-NcmBridgeDefaultConfigPath {
-    $repoRoot = Split-Path -Parent $PSScriptRoot
+    $scriptsRoot = Split-Path -Parent $PSScriptRoot
+    $repoRoot = Split-Path -Parent $scriptsRoot
     Join-Path $repoRoot ".ncm-bridge.json"
 }
 

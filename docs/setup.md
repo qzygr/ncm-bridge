@@ -35,5 +35,5 @@ Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login -
 启动后停止自动流程，等用户扫码完成，再跑：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\test-ncm-bridge.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\tests\test-ncm-bridge.ps1
 ```

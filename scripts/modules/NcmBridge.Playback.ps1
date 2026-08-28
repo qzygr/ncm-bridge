@@ -125,7 +125,7 @@ function Invoke-PlaybackVerification {
         [int]$InitialDelayMs = 500
     )
 
-    . (Join-Path $RepoRoot "netease-music-cli\OrpheusControl.ps1")
+    . (Join-Path $RepoRoot "scripts\OrpheusControl.ps1")
     if ($Attempts -lt 1) { $Attempts = 1 }
     if ($RetryDelayMs -lt 0) { $RetryDelayMs = 0 }
     if ($InitialDelayMs -lt 0) { $InitialDelayMs = 0 }

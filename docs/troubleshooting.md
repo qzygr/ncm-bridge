@@ -15,13 +15,13 @@ Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login -
 处理：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\repair-ncm-bridge-config.ps1 -Json
+powershell -ExecutionPolicy Bypass -File .\scripts\workflows\repair-ncm-bridge-config.ps1 -Json
 ```
 
 如果没有健康 key，先初始化：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\init-ncm-bridge-playlist.ps1 -Json
+powershell -ExecutionPolicy Bypass -File .\scripts\workflows\init-ncm-bridge-playlist.ps1 -Json
 ```
 
 ## orpheus 无响应
@@ -31,13 +31,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\init-ncm-bridge-playlist.ps1 
 - 用 dry-run 只能验证 payload 生成：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\test-orpheus-dryrun.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\tests\test-orpheus-dryrun.ps1
 ```
 
 dry-run 不验证客户端是否执行。播放结果只能通过 SMTC 验证：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 -Action verifyPlayback -ExpectedTitle "歌名" -ExpectedArtist "歌手" -Json
+powershell -ExecutionPolicy Bypass -File .\scripts\entry\invoke-ncm-bridge.ps1 -Action verifyPlayback -ExpectedTitle "歌名" -ExpectedArtist "歌手" -Json
 ```
 
 返回 `code: NOT_VERIFIED` 时，优先查看 `diagnostics`：
@@ -60,5 +60,5 @@ powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 -Action
 默认读取会先短暂等待并重试。需要调整时：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\netease-music-cli\Read-NeteaseSmtc.ps1 -Json -Attempts 8 -RetryDelayMs 700 -InitialDelayMs 500
+powershell -ExecutionPolicy Bypass -File .\scripts\Read-NeteaseSmtc.ps1 -Json -Attempts 8 -RetryDelayMs 700 -InitialDelayMs 500
 ```

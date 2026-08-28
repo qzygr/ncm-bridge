@@ -32,7 +32,7 @@ function New-BridgeHelpResult {
         action = "help"
         code = "OK"
         message = "NCM bridge action help."
-        usage = "powershell -ExecutionPolicy Bypass -File .\scripts\invoke-ncm-bridge.ps1 -Action <action> [-Json [-CompressJson]]"
+        usage = "powershell -ExecutionPolicy Bypass -File .\scripts\entry\invoke-ncm-bridge.ps1 -Action <action> [-Json [-CompressJson]]"
         actions = @(
             [pscustomobject]@{
                 name = "help"

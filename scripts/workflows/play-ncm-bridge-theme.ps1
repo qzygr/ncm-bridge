@@ -23,14 +23,16 @@ param(
 $ErrorActionPreference = "Stop"
 $outputJson = [bool]$Json
 
-. (Join-Path $PSScriptRoot "NcmBridge.Config.ps1")
+$scriptsRoot = Split-Path -Parent $PSScriptRoot
+$modulesRoot = Join-Path $scriptsRoot "modules"
+. (Join-Path $modulesRoot "NcmBridge.Config.ps1")
 
 if (-not $ConfigPath) {
-    $repoRoot = Split-Path -Parent $PSScriptRoot
+    $repoRoot = Split-Path -Parent $scriptsRoot
     $ConfigPath = Join-Path $repoRoot ".ncm-bridge.json"
 }
 else {
-    $repoRoot = Split-Path -Parent $PSScriptRoot
+    $repoRoot = Split-Path -Parent $scriptsRoot
 }
 
 $playlistKeyValue = $PlaylistKey.Trim()
@@ -40,7 +42,7 @@ if ([string]::IsNullOrWhiteSpace($playlistKeyValue)) {
 
 $themeScript = Join-Path $PSScriptRoot "set-ncm-bridge-theme.ps1"
 $replaceScript = Join-Path $PSScriptRoot "replace-ncm-bridge-tracks.ps1"
-$orpheusScript = Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1"
+$orpheusScript = Join-Path $scriptsRoot "OrpheusControl.ps1"
 
 $themeArgs = @("-ExecutionPolicy", "Bypass", "-File", $themeScript, "-Theme", $Theme, "-PlaylistKey", $playlistKeyValue, "-ConfigPath", $ConfigPath, "-Json")
 if (-not [string]::IsNullOrWhiteSpace($Description)) { $themeArgs += @("-Description", $Description) }

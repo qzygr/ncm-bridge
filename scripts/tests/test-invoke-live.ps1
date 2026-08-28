@@ -78,8 +78,9 @@ function Invoke-BridgeJson {
     ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
-$invokeScript = Join-Path $PSScriptRoot "invoke-ncm-bridge.ps1"
+$scriptsRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent $scriptsRoot
+$invokeScript = Join-Path $scriptsRoot "entry\invoke-ncm-bridge.ps1"
 $results = New-Object System.Collections.Generic.List[object]
 
 $results.Add((Invoke-TestStep -Category "environment" -Name "ncm-cli availability" -Action {
@@ -92,12 +93,8 @@ $results.Add((Invoke-TestStep -Category "environment" -Name "ncm-cli availabilit
 }))
 
 $results.Add((Invoke-TestStep -Category "login" -Name "account login status" -Action {
-    $raw = & ncm-cli login --check
-    if (-not $raw) {
-        throw "ncm-cli login --check returned no output."
-    }
-
-    $parsed = $raw | ConvertFrom-Json -ErrorAction Stop
+    . (Join-Path $scriptsRoot "modules\NcmBridge.Cli.ps1")
+    $parsed = Invoke-NcmCliLoginCheck
     if (-not $parsed.success) {
         $message = if ($parsed.message) { $parsed.message } else { "Not logged in." }
         throw ($message + " Use the desktop login flow instead: " + $LoginWindowCommand + ". After launching it, stop here and wait for QR login to complete before rerunning this test.")

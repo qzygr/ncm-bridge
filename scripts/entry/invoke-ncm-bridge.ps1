@@ -38,16 +38,20 @@ $verifyAttempts = $Attempts
 $verifyRetryDelayMs = $RetryDelayMs
 $verifyInitialDelayMs = $InitialDelayMs
 
-. (Join-Path $PSScriptRoot "NcmBridge.Config.ps1")
-. (Join-Path $PSScriptRoot "NcmBridge.Cli.ps1")
-. (Join-Path $PSScriptRoot "NcmBridge.Text.ps1")
+$scriptsRoot = Split-Path -Parent $PSScriptRoot
+$modulesRoot = Join-Path $scriptsRoot "modules"
+$workflowsRoot = Join-Path $scriptsRoot "workflows"
+$testsRoot = Join-Path $scriptsRoot "tests"
+. (Join-Path $modulesRoot "NcmBridge.Config.ps1")
+. (Join-Path $modulesRoot "NcmBridge.Cli.ps1")
+. (Join-Path $modulesRoot "NcmBridge.Text.ps1")
 
 if (-not $ConfigPath) {
-    $repoRoot = Split-Path -Parent $PSScriptRoot
+    $repoRoot = Split-Path -Parent $scriptsRoot
     $ConfigPath = Join-Path $repoRoot ".ncm-bridge.json"
 }
 else {
-    $repoRoot = Split-Path -Parent $PSScriptRoot
+    $repoRoot = Split-Path -Parent $scriptsRoot
 }
 
 <#
@@ -168,12 +172,12 @@ if ($requiresLogin) {
 
 $result = switch ($Action) {
     "help" {
-        . (Join-Path $PSScriptRoot "NcmBridge.Help.ps1")
+        . (Join-Path $modulesRoot "NcmBridge.Help.ps1")
         New-BridgeHelpResult
     }
 
     "diagnose" {
-        . (Join-Path $PSScriptRoot "NcmBridge.Diagnostics.ps1")
+        . (Join-Path $modulesRoot "NcmBridge.Diagnostics.ps1")
         Get-NcmBridgeDiagnostics `
             -ConfigPath $ConfigPath `
             -IncludeSmtc:([bool]$Verify) `
@@ -184,12 +188,12 @@ $result = switch ($Action) {
     }
 
     "status" {
-        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "get-ncm-bridge-status.ps1"), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-Summary", "-Json")
+        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $workflowsRoot "get-ncm-bridge-status.ps1"), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-Summary", "-Json")
         Invoke-BridgeScript -Arguments $args
     }
 
     "repair" {
-        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "repair-ncm-bridge-config.ps1"), "-ConfigPath", $ConfigPath, "-Json")
+        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $workflowsRoot "repair-ncm-bridge-config.ps1"), "-ConfigPath", $ConfigPath, "-Json")
         if (-not [string]::IsNullOrWhiteSpace($Prefer)) { $args += @("-Prefer", $Prefer) }
         if ($PruneMissing) { $args += "-PruneMissing" }
         if ($DryRun) { $args += "-DryRun" }
@@ -197,14 +201,14 @@ $result = switch ($Action) {
     }
 
     "pruneMissing" {
-        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "repair-ncm-bridge-config.ps1"), "-ConfigPath", $ConfigPath, "-PruneMissing", "-Json")
+        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $workflowsRoot "repair-ncm-bridge-config.ps1"), "-ConfigPath", $ConfigPath, "-PruneMissing", "-Json")
         if (-not [string]::IsNullOrWhiteSpace($Prefer)) { $args += @("-Prefer", $Prefer) }
         if ($DryRun) { $args += "-DryRun" }
         Invoke-BridgeScript -Arguments $args
     }
 
     "dryRun" {
-        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "test-orpheus-payload.ps1"), "-Json")
+        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $testsRoot "test-orpheus-payload.ps1"), "-Json")
         Invoke-BridgeScript -Arguments $args
     }
 
@@ -251,7 +255,7 @@ $result = switch ($Action) {
     }
 
     "verifyPlayback" {
-        . (Join-Path $PSScriptRoot "NcmBridge.Playback.ps1")
+        . (Join-Path $modulesRoot "NcmBridge.Playback.ps1")
         Invoke-PlaybackVerification `
             -ExpectedTitle $ExpectedTitle `
             -ExpectedArtist $ExpectedArtist `
@@ -264,10 +268,10 @@ $result = switch ($Action) {
     "playSong" {
         if ([string]::IsNullOrWhiteSpace($OriginalId)) { throw "OriginalId is required for action 'playSong'." }
 
-        . (Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1")
+        . (Join-Path $scriptsRoot "OrpheusControl.ps1")
         $url = Invoke-OrpheusCommand -Name "play_song" -Params @{ id = "$OriginalId" } -DryRun:$DryRun 6>$null
         $verification = if ($Verify -and -not $DryRun) {
-            . (Join-Path $PSScriptRoot "NcmBridge.Playback.ps1")
+            . (Join-Path $modulesRoot "NcmBridge.Playback.ps1")
             Invoke-PlaybackVerification `
                 -ExpectedTitle $ExpectedTitle `
                 -ExpectedArtist $ExpectedArtist `
@@ -302,7 +306,7 @@ $result = switch ($Action) {
             throw "Bridge playlist '$key' does not contain originalId. Run init first."
         }
 
-        . (Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1")
+        . (Join-Path $scriptsRoot "OrpheusControl.ps1")
         $url = Invoke-OrpheusCommand -Name "play_playlist" -Params @{ id = "$($entry.originalId)" } -DryRun:$DryRun 6>$null
         [pscustomobject]@{
             success = $true
@@ -324,21 +328,21 @@ $result = switch ($Action) {
             break
         }
 
-        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "set-ncm-bridge-theme.ps1"), "-Theme", $Theme, "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-Json")
+        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $workflowsRoot "set-ncm-bridge-theme.ps1"), "-Theme", $Theme, "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-Json")
         if (-not [string]::IsNullOrWhiteSpace($Description)) { $args += @("-Description", $Description) }
         Invoke-BridgeScript -Arguments $args
     }
 
     "replaceTracks" {
         $ids = Get-TargetSongIds
-        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "replace-ncm-bridge-tracks.ps1"), "-SongIds", ($ids -join ","), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-Json")
+        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $workflowsRoot "replace-ncm-bridge-tracks.ps1"), "-SongIds", ($ids -join ","), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-Json")
         if ($DryRun) { $args += "-ValidateOnly" }
         Invoke-BridgeScript -Arguments $args
     }
 
     "validateReplaceTracks" {
         $ids = Get-TargetSongIds
-        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "replace-ncm-bridge-tracks.ps1"), "-SongIds", ($ids -join ","), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-ValidateOnly", "-Json")
+        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $workflowsRoot "replace-ncm-bridge-tracks.ps1"), "-SongIds", ($ids -join ","), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-ValidateOnly", "-Json")
         Invoke-BridgeScript -Arguments $args
     }
 
@@ -347,12 +351,12 @@ $result = switch ($Action) {
         $ids = Get-TargetSongIds
         if ($DryRun) {
             $themePreview = Get-BridgeThemePreview -ThemeValue $Theme -DescriptionValue $Description
-            $replacePreviewArgs = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "replace-ncm-bridge-tracks.ps1"), "-SongIds", ($ids -join ","), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-ValidateOnly", "-Json")
+            $replacePreviewArgs = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $workflowsRoot "replace-ncm-bridge-tracks.ps1"), "-SongIds", ($ids -join ","), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-ValidateOnly", "-Json")
             $replacePreview = Invoke-BridgeScript -Arguments $replacePreviewArgs
             $config = Read-BridgeConfig -Path $ConfigPath
             $key = if ([string]::IsNullOrWhiteSpace($PlaylistKey)) { "$($config.activePlaylistKey)" } else { $PlaylistKey.Trim() }
             $entry = Get-BridgePlaylistEntry -Config $config -Key $key
-            . (Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1")
+            . (Join-Path $scriptsRoot "OrpheusControl.ps1")
             $playUrl = Invoke-OrpheusCommand -Name "play_playlist" -Params @{ id = "$($entry.originalId)" } -DryRun 6>$null
             [pscustomobject]@{
                 success = $true
@@ -369,11 +373,11 @@ $result = switch ($Action) {
             break
         }
 
-        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "play-ncm-bridge-theme.ps1"), "-Theme", $Theme, "-SongIds", ($ids -join ","), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-Json")
+        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $workflowsRoot "play-ncm-bridge-theme.ps1"), "-Theme", $Theme, "-SongIds", ($ids -join ","), "-PlaylistKey", $PlaylistKey, "-ConfigPath", $ConfigPath, "-Json")
         if (-not [string]::IsNullOrWhiteSpace($Description)) { $args += @("-Description", $Description) }
         $playThemeResult = Invoke-BridgeScript -Arguments $args
         if ($Verify) {
-            . (Join-Path $PSScriptRoot "NcmBridge.Playback.ps1")
+            . (Join-Path $modulesRoot "NcmBridge.Playback.ps1")
             $verification = Invoke-PlaybackVerification `
                 -ExpectedTitle $ExpectedTitle `
                 -ExpectedArtist $ExpectedArtist `

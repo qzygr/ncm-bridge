@@ -102,8 +102,9 @@ function Assert-PropertyEquals {
     }
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
-$orpheusScript = Join-Path $repoRoot "netease-music-cli\OrpheusControl.ps1"
+$scriptsRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent $scriptsRoot
+$orpheusScript = Join-Path $scriptsRoot "OrpheusControl.ps1"
 
 . $orpheusScript
 
