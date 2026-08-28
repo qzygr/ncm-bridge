@@ -1,3 +1,9 @@
+﻿<#
+主要作用：读取 Windows System Media Transport Controls 中网易云音乐会话状态。
+输入：初始等待、读取尝试次数、重试间隔及 JSON 输出开关。
+输出：播放器、标题、歌手、播放状态、位置和时长等媒体状态对象。
+#>
+
 param(
     [switch]$Json,
     [int]$Attempts = 5,
@@ -7,6 +13,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+<#
+主要作用：同步等待 WinRT 异步操作并提取其结果。
+输入：WinRT 异步操作对象与其结果类型。
+输出：异步操作完成后的结果对象。
+#>
 function Get-WinRtAsyncResult {
     param(
         [Parameter(Mandatory = $true)]
@@ -33,6 +44,11 @@ function Get-WinRtAsyncResult {
     return $task.GetAwaiter().GetResult()
 }
 
+<#
+主要作用：从 Windows 媒体会话管理器中定位网易云音乐的 SMTC 会话。
+输入：无；读取系统公开的媒体会话。
+输出：网易云音乐媒体会话对象；未找到时返回 null。
+#>
 function Get-NeteaseSmtcStatus {
     Add-Type -AssemblyName System.Runtime.WindowsRuntime
     $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
@@ -97,6 +113,11 @@ function Get-NeteaseSmtcStatus {
     }
 }
 
+<#
+主要作用：按给定延迟和次数读取网易云音乐 SMTC 状态。
+输入：初始等待毫秒数、尝试次数与重试间隔毫秒数。
+输出：最后读取到的媒体状态对象或 null。
+#>
 function Invoke-NeteaseSmtcRead {
     param(
         [int]$Attempts = 5,

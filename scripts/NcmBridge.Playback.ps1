@@ -1,5 +1,16 @@
+﻿<#
+主要作用：通过 Windows SMTC 验证目标歌曲是否真正进入播放状态。
+输入：期望标题、歌手、重试次数与重试延迟。
+输出：匹配结果、诊断信息，以及 VERIFIED 或 NOT_VERIFIED 语义所需字段。
+#>
+
 $ErrorActionPreference = "Stop"
 
+<#
+主要作用：按不区分大小写的包含关系比较媒体文本。
+输入：实际文本与期望文本。
+输出：期望为空或实际文本包含期望文本时返回 true。
+#>
 function Test-TextMatch {
     param(
         [string]$Actual,
@@ -11,6 +22,11 @@ function Test-TextMatch {
     return $Actual.IndexOf($Expected, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
 }
 
+<#
+主要作用：构造一次播放验证失败时的详细诊断对象。
+输入：期望信息、最后一次 SMTC 状态和重试配置。
+输出：可写入 JSON 结果的诊断对象。
+#>
 function New-PlaybackVerificationDiagnostics {
     param(
         [object]$Status,
@@ -93,6 +109,11 @@ function New-PlaybackVerificationDiagnostics {
     }
 }
 
+<#
+主要作用：轮询 SMTC，确认标题、歌手和 Playing 状态同时匹配。
+输入：期望标题、期望歌手、尝试次数、初始等待与重试延迟。
+输出：包含 verified、状态快照和诊断信息的验证结果对象。
+#>
 function Invoke-PlaybackVerification {
     param(
         [string]$ExpectedTitle = "",

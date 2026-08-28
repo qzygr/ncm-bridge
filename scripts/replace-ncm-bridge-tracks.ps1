@@ -1,3 +1,9 @@
+﻿<#
+主要作用：校验并替换程序专用歌单的远端曲目列表。
+输入：加密歌曲 ID、PlaylistKey、配置路径、ValidateOnly 与 JSON 开关。
+输出：曲目校验结果或远端替换操作结果。
+#>
+
 param(
     [Parameter(Mandatory = $true)]
     [string[]]$SongIds,

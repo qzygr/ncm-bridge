@@ -1,3 +1,9 @@
+﻿<#
+主要作用：更新程序专用歌单的主题名称、角色前缀和描述。
+输入：主题、描述、角色名、PlaylistKey、配置路径和 JSON 开关。
+输出：校验后的显示名称及远端歌单更新结果。
+#>
+
 param(
     [Parameter(Mandatory = $true)]
     [string]$Theme,

@@ -1,6 +1,8 @@
-# OrpheusControl.ps1
-# Local playback module. It only launches orpheus:// URLs and reads SMTC.
-# A launched URL is not proof that playback changed; verify playback via SMTC.
+﻿<#
+主要作用：编码并发起网易云音乐客户端的 orpheus:// 本地协议命令。
+输入：协议 JSON、命令注册表路径、DryRun 与 JSON 输出开关。
+输出：协议 URL、命令列表、播放状态或命令执行结果。
+#>
 
 $ErrorActionPreference = "Stop"
 
@@ -9,6 +11,11 @@ if (Test-Path $smtcScriptPath) {
     . $smtcScriptPath
 }
 
+<#
+主要作用：将 JSON 负载编码为标准 Base64 的 orpheus:// 协议 URL，并可选择启动。
+输入：JSON 负载、是否 DryRun、是否以 JSON 格式返回。
+输出：生成的协议 URL；DryRun 时仅返回预览，不启动客户端。
+#>
 function OrpheusControl {
     param(
         [Parameter(Mandatory = $true)]
@@ -45,6 +52,11 @@ function OrpheusControl {
     return $url
 }
 
+<#
+主要作用：根据命令名称和参数构造并执行 Orpheus 注册表中的协议命令。
+输入：命令名称、ID、数值、DryRun、注册表路径和 JSON 开关。
+输出：协议调用结果对象或协议 URL。
+#>
 function Invoke-OrpheusCommand {
     param(
         [Parameter(Mandatory = $true)]
@@ -101,6 +113,11 @@ function Invoke-OrpheusCommand {
     OrpheusControl -Json $payload -DryRun:$DryRun
 }
 
+<#
+主要作用：读取网易云音乐客户端当前播放状态的兼容包装。
+输入：SMTC 初始等待、重试次数与重试延迟。
+输出：Read-NeteaseSmtc.ps1 返回的媒体会话状态对象。
+#>
 function Get-NeteasePlaybackStatus {
     param(
         [int]$Attempts = 5,
@@ -116,6 +133,11 @@ function Get-NeteasePlaybackStatus {
     Invoke-NeteaseSmtcRead -Attempts $Attempts -RetryDelayMs $RetryDelayMs -InitialDelayMs $InitialDelayMs
 }
 
+<#
+主要作用：读取并返回 Orpheus 命令注册表。
+输入：可选的注册表 JSON 文件路径。
+输出：命令注册表对象，包含协议名称、命令和编码规则。
+#>
 function Get-OrpheusCommands {
     param([string]$RegistryPath = $null)
 
@@ -132,6 +154,11 @@ function Get-OrpheusCommands {
     $registry.commands | Format-Table name, description -AutoSize
 }
 
+<#
+主要作用：列出此模块公开的 Orpheus 控制函数名称。
+输入：可选模块路径，用于读取函数定义。
+输出：公开函数名称字符串数组。
+#>
 function Get-OrpheusControlFunctions {
     param([string]$Path = $null)
 

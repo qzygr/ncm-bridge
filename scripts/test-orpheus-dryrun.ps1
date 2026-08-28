@@ -1,3 +1,9 @@
+﻿<#
+主要作用：在不启动客户端的情况下生成、解码并校验 Orpheus 协议负载。
+输入：可选 Json 开关。
+输出：各协议命令 payload 的测试结果与汇总。
+#>
+
 param(
     [switch]$Json
 )
@@ -5,6 +11,11 @@ param(
 $ErrorActionPreference = "Stop"
 $outputJson = [bool]$Json
 
+<#
+主要作用：构造 Orpheus dry-run 测试结果项。
+输入：名称、通过状态和可选详情。
+输出：包含 Name、Passed、Detail 的测试对象。
+#>
 function New-TestResult {
     param(
         [Parameter(Mandatory = $true)]
@@ -23,6 +34,11 @@ function New-TestResult {
     }
 }
 
+<#
+主要作用：执行单个 payload 测试并将异常记录为失败结果。
+输入：名称与待执行的脚本块。
+输出：成功或失败的测试结果对象。
+#>
 function Invoke-TestStep {
     param(
         [Parameter(Mandatory = $true)]
@@ -41,6 +57,11 @@ function Invoke-TestStep {
     }
 }
 
+<#
+主要作用：从 orpheus:// URL 解码 Base64 负载并解析 JSON。
+输入：完整的 orpheus:// 协议 URL。
+输出：解析后的 payload 对象；格式错误时抛出异常。
+#>
 function ConvertFrom-OrpheusUrl {
     param(
         [Parameter(Mandatory = $true)]
@@ -58,6 +79,11 @@ function ConvertFrom-OrpheusUrl {
     $jsonText | ConvertFrom-Json -ErrorAction Stop
 }
 
+<#
+主要作用：断言对象指定属性等于期望字符串。
+输入：目标对象、属性名和期望值。
+输出：断言通过时无返回值；不一致时抛出异常。
+#>
 function Assert-PropertyEquals {
     param(
         [Parameter(Mandatory = $true)]

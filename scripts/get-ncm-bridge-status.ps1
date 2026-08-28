@@ -1,3 +1,9 @@
+﻿<#
+主要作用：查询本地绑定的程序专用歌单是否能在远端健康解析。
+输入：PlaylistKey、配置路径、是否查看全部/摘要/配置细节及 JSON 开关。
+输出：单个或多个歌单的健康状态、名称、曲目数与可选配置数据。
+#>
+
 param(
     [string]$PlaylistKey = "",
     [string]$ConfigPath = $null,
@@ -14,6 +20,11 @@ $outputJson = [bool]$Json
 . (Join-Path $PSScriptRoot "NcmBridge.Config.ps1")
 . (Join-Path $PSScriptRoot "NcmBridge.Playlist.ps1")
 
+<#
+主要作用：将本地绑定条目和远端查询结果整理为统一状态项。
+输入：PlaylistKey、本地条目和可选远端歌单对象。
+输出：包含 ok、missing 或原因字段的状态对象。
+#>
 function New-StatusItem {
     param(
         [Parameter(Mandatory = $true)][string]$Key,

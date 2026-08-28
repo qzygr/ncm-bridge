@@ -1,3 +1,9 @@
+﻿<#
+主要作用：串联主题更新、曲目替换和 Orpheus 歌单播放。
+输入：主题、加密歌曲 ID、描述、角色名、PlaylistKey、DryRun 等参数。
+输出：主题、曲目替换和播放 URL 的组合结果；可选预览结果。
+#>
+
 param(
     [Parameter(Mandatory = $true)]
     [string]$Theme,

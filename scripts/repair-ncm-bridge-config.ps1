@@ -1,3 +1,9 @@
+﻿<#
+主要作用：检查本地歌单绑定，并将 activePlaylistKey 恢复到健康歌单。
+输入：优先 key、配置路径、是否清理失效条目、DryRun 与 JSON 开关。
+输出：健康项、选中项、修改预览或写入后的修复结果。
+#>
+
 param(
     [string]$Prefer = "",
     [string]$ConfigPath = $null,

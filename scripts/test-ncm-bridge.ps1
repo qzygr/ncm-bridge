@@ -1,3 +1,9 @@
+﻿<#
+主要作用：聚合快速和可选联网测试，是仓库推荐的总自检入口。
+输入：Json、Live 与 IncludePlayback 开关。
+输出：分层测试汇总及逐项结果；失败时以非零退出码结束。
+#>
+
 param(
     [switch]$Json,
     [switch]$Live,
@@ -6,6 +12,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+<#
+主要作用：构造统一的聚合测试结果项。
+输入：分类、名称、通过状态和可选详情。
+输出：包含 Category、Name、Passed、Detail 的测试对象。
+#>
 function New-TestResult {
     param(
         [Parameter(Mandatory = $true)]
@@ -28,6 +39,11 @@ function New-TestResult {
     }
 }
 
+<#
+主要作用：执行单个聚合测试步骤并捕获异常。
+输入：分类、名称与待执行的脚本块。
+输出：成功或失败的统一测试结果对象。
+#>
 function Invoke-TestStep {
     param(
         [Parameter(Mandatory = $true)]
@@ -49,6 +65,11 @@ function Invoke-TestStep {
     }
 }
 
+<#
+主要作用：使用 PowerShell 解析器验证指定脚本语法。
+输入：PowerShell 脚本路径。
+输出：成功时返回 Syntax OK 文本；失败时抛出异常。
+#>
 function Test-PowerShellSyntax {
     param(
         [Parameter(Mandatory = $true)]
@@ -65,6 +86,11 @@ function Test-PowerShellSyntax {
     return "Syntax OK"
 }
 
+<#
+主要作用：判断当前操作系统是否为 Windows。
+输入：无。
+输出：布尔值，true 表示 Windows 环境。
+#>
 function Test-IsWindowsEnvironment {
     if (Get-Variable -Name IsWindows -ErrorAction SilentlyContinue) {
         return [bool]$IsWindows

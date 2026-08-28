@@ -1,8 +1,19 @@
+﻿<#
+主要作用：运行不联网、不写远端、不播放也不读取 SMTC 的快速测试。
+输入：可选 Json 开关。
+输出：测试汇总及逐项结果；失败时以非零退出码结束。
+#>
+
 param([switch]$Json)
 
 $ErrorActionPreference = "Stop"
 $outputJson = [bool]$Json
 
+<#
+主要作用：构造统一的快速测试结果项。
+输入：分类、名称、通过状态和可选详情。
+输出：包含 Category、Name、Passed、Detail 的测试对象。
+#>
 function New-TestResult {
     param(
         [Parameter(Mandatory = $true)][string]$Category,
@@ -19,6 +30,11 @@ function New-TestResult {
     }
 }
 
+<#
+主要作用：执行单个测试脚本块并将异常转换为失败结果。
+输入：分类、名称与待执行的脚本块。
+输出：成功或失败的统一测试结果对象。
+#>
 function Invoke-TestStep {
     param(
         [Parameter(Mandatory = $true)][string]$Category,
@@ -35,6 +51,11 @@ function Invoke-TestStep {
     }
 }
 
+<#
+主要作用：使用 PowerShell 解析器检查指定脚本的语法。
+输入：PowerShell 脚本路径。
+输出：成功时返回 Syntax OK 文本；失败时抛出首个语法错误。
+#>
 function Test-PowerShellSyntax {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -48,6 +69,11 @@ function Test-PowerShellSyntax {
     "Syntax OK"
 }
 
+<#
+主要作用：判断当前运行环境是否为 Windows。
+输入：无。
+输出：布尔值，true 表示 Windows 环境。
+#>
 function Test-IsWindowsEnvironment {
     if (Get-Variable -Name IsWindows -ErrorAction SilentlyContinue) {
         return [bool]$IsWindows
@@ -56,6 +82,11 @@ function Test-IsWindowsEnvironment {
     return [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
 }
 
+<#
+主要作用：运行统一入口并将其 JSON 输出转换为对象。
+输入：传递给 powershell 的命令行参数数组。
+输出：解析后的桥接结果对象；子进程失败时抛出异常。
+#>
 function Invoke-BridgeJson {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
 
@@ -292,6 +323,43 @@ $results.Add((Invoke-TestStep -Category "invoke-fast" -Name "diagnose returns lo
     if (-not $result.ncmCli) { throw "Missing ncm-cli diagnostic." }
     if (-not $result.scriptAnalyzer) { throw "Missing PSScriptAnalyzer diagnostic." }
     "diagnose code=$($result.code)"
+}))
+
+$results.Add((Invoke-TestStep -Category "invoke-fast" -Name "upgrade notice before login JSON is ignored" -Action {
+    if (-not (Test-Path $mockBin)) {
+        New-Item -ItemType Directory -Path $mockBin | Out-Null
+    }
+    $mockCliPath = Join-Path $mockBin "ncm-cli.ps1"
+    @'
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$RemainingArgs)
+
+if ($RemainingArgs.Count -ge 2 -and $RemainingArgs[0] -eq "login" -and $RemainingArgs[1] -eq "--check") {
+    "有新版本: 0.1.6 → 0.1.7  运行 ncm-cli upgrade 升级"
+    '{"success":true,"message":"已登录"}'
+    exit 0
+}
+
+if ($RemainingArgs.Count -ge 1 -and $RemainingArgs[0] -eq "--version") {
+    "0.1.6-mock"
+    exit 0
+}
+
+"error: unknown command '$($RemainingArgs -join ' ')'" | Write-Error
+exit 1
+'@ | Set-Content -Path $mockCliPath -Encoding UTF8
+
+    $oldPath = $env:PATH
+    try {
+        $env:PATH = "$mockBin;$oldPath"
+        $result = Invoke-BridgeJson -Arguments @("-ExecutionPolicy", "Bypass", "-File", $invokeScript, "-Action", "diagnose", "-ConfigPath", $fastConfigPath, "-Json")
+    }
+    finally {
+        $env:PATH = $oldPath
+    }
+
+    if ($result.code -ne "OK") { throw "Unexpected code: $($result.code)" }
+    if (-not $result.login.success) { throw "Expected successful login diagnostic." }
+    "upgrade notice ignored"
 }))
 
 $results.Add((Invoke-TestStep -Category "invoke-fast" -Name "logged-out status returns LOGIN_REQUIRED before hidden command diagnosis" -Action {

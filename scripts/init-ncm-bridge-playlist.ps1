@@ -1,3 +1,9 @@
+﻿<#
+主要作用：初始化、复用或修复一个程序专用歌单及其本地绑定。
+输入：基础名称、角色名、PlaylistKey、配置路径和 JSON 开关。
+输出：创建、复用、重命名或加载结果，以及更新后的绑定信息。
+#>
+
 param(
     [string]$BaseName = "ncm-bridge",
     [string]$RoleName = "",

@@ -1,3 +1,14 @@
+﻿<#
+主要作用：定义统一入口的动作契约与可读帮助文本。
+输入：无；动作与参数定义内置于模块中。
+输出：结构化帮助对象或格式化的命令行帮助文本。
+#>
+
+<#
+主要作用：生成全部统一入口动作、参数和安全约束的结构化帮助。
+输入：无。
+输出：可序列化为 JSON 的帮助结果对象。
+#>
 function New-BridgeHelpResult {
     $actionNames = @(
         "help",
@@ -194,6 +205,11 @@ function New-BridgeHelpResult {
     }
 }
 
+<#
+主要作用：将结构化帮助结果转换为控制台可读文本。
+输入：New-BridgeHelpResult 返回的帮助对象。
+输出：多行字符串数组，适合 Write-Host 或普通文本输出。
+#>
 function ConvertTo-BridgeHelpText {
     param([Parameter(Mandatory = $true)][object]$Value)
 

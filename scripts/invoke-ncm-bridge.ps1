@@ -1,3 +1,9 @@
+﻿<#
+主要作用：作为 Agent 的统一入口，分发诊断、歌单、搜索、播放和验证动作。
+输入：Action、歌曲或歌单参数、验证参数、配置路径与输出格式开关。
+输出：人类可读文本或稳定的 JSON 结果对象。
+#>
+
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet("help", "diagnose", "status", "repair", "pruneMissing", "dryRun", "searchSong", "playSong", "verifyPlayback", "playDefault", "setTheme", "replaceTracks", "validateReplaceTracks", "playTheme")]
@@ -44,6 +50,11 @@ else {
     $repoRoot = Split-Path -Parent $PSScriptRoot
 }
 
+<#
+主要作用：按当前输出选项写入统一入口结果并结束脚本。
+输入：任意已规范化的动作结果对象。
+输出：JSON、压缩 JSON 或控制台文本；函数调用后退出当前脚本。
+#>
 function Write-BridgeResult {
     param([Parameter(Mandatory = $true)][object]$Value)
 
@@ -61,6 +72,11 @@ function Write-BridgeResult {
     else { $Value | ConvertTo-Json -Depth 6 }
 }
 
+<#
+主要作用：调用子工作流脚本并将其 JSON 输出解析为对象。
+输入：脚本路径与传递给该脚本的参数数组。
+输出：子脚本返回的解析后 JSON 对象；子脚本失败时抛出异常。
+#>
 function Invoke-BridgeScript {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
 
@@ -77,6 +93,11 @@ function Invoke-BridgeScript {
     $text | ConvertFrom-Json -ErrorAction Stop
 }
 
+<#
+主要作用：规范化逗号分隔或数组形式的加密歌曲 ID。
+输入：原始 SongIds 字符串数组。
+输出：去空白、去重后的歌曲 ID 数组。
+#>
 function Get-TargetSongIds {
     $ids = @(
         $SongIds |
@@ -93,6 +114,11 @@ function Get-TargetSongIds {
     $ids
 }
 
+<#
+主要作用：生成主题歌单动作在 DryRun 模式下的预览结果。
+输入：主题、描述、歌曲 ID、PlaylistKey 和配置路径。
+输出：不执行远端写入或播放的预览对象。
+#>
 function Get-BridgeThemePreview {
     param(
         [Parameter(Mandatory = $true)][string]$ThemeValue,

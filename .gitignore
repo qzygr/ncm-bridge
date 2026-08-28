@@ -2,3 +2,4 @@
 .tmp-ncm-bridge-config.json
 .codex-tmp/
 .codex-cache/
+tests/developer/

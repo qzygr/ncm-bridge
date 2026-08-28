@@ -1,3 +1,9 @@
+﻿<#
+主要作用：在已登录环境中测试搜索、SMTC 路径和可选真实播放验证。
+输入：Json、IncludePlayback、搜索条件、歌曲 ID 与期望元数据。
+输出：联网测试汇总及逐项结果；未登录时报告登录失败。
+#>
+
 param(
     [switch]$Json,
     [switch]$IncludePlayback,
@@ -14,6 +20,11 @@ $outputJson = [bool]$Json
 
 $LoginWindowCommand = "Start-Process 'powershell' -ArgumentList '-NoExit', '-Command', 'ncm-cli login --background'"
 
+<#
+主要作用：构造统一的联网测试结果项。
+输入：分类、名称、通过状态和可选详情。
+输出：包含 Category、Name、Passed、Detail 的测试对象。
+#>
 function New-TestResult {
     param(
         [Parameter(Mandatory = $true)][string]$Category,
@@ -30,6 +41,11 @@ function New-TestResult {
     }
 }
 
+<#
+主要作用：执行单个联网测试并把异常记录为失败结果。
+输入：分类、名称与待执行的脚本块。
+输出：成功或失败的统一测试结果对象。
+#>
 function Invoke-TestStep {
     param(
         [Parameter(Mandatory = $true)][string]$Category,
@@ -46,6 +62,11 @@ function Invoke-TestStep {
     }
 }
 
+<#
+主要作用：调用统一入口并解析其 JSON 响应。
+输入：传递给 powershell 的命令行参数数组。
+输出：解析后的桥接结果对象；子进程失败时抛出异常。
+#>
 function Invoke-BridgeJson {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
 
